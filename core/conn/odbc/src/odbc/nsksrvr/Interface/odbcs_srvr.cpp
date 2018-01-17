@@ -1669,7 +1669,7 @@ SQLEXECUTE_IOMessage(
 
 	DIALOGUE_ID_def dialogueId = 0;
 	IDL_long   sqlAsyncEnable = 0;
-    IDL_long   queryTimeout = 0;
+        IDL_long   queryTimeout = 0;
 	IDL_long   inputRowCnt = 0;
 	IDL_long   maxRowsetSize = 0;
 	IDL_long   sqlStmtType = 0;
@@ -1685,7 +1685,7 @@ SQLEXECUTE_IOMessage(
 	IDL_long   stmtLength = 0;
 	IDL_char  *stmtLabel = NULL;
 	IDL_long   stmtLabelCharset = 0;
-    IDL_long   stmtExplainLabelLength = 0;
+        IDL_long   stmtExplainLabelLength = 0;
 	IDL_string stmtExplainLabel = NULL;
 	IDL_long   inValuesLength = 0;
 	BYTE      *inValues = NULL;

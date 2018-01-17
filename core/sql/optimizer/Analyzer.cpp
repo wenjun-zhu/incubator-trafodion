@@ -926,6 +926,7 @@ TableAnalysis * QueryAnalysis::newTableAnalysis(RelExpr* tableExpr)
   return tabAnalysis;
 }
 
+// TODO(adamas): Notice this for routine.
 // create a new RoutineAnalysis structure for this routineExpr
 // currently only scalar udfs can have RoutineAnalysis structure
 // associated with them

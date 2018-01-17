@@ -354,9 +354,9 @@ NARoutine::NARoutine(const QualifiedName   &name,
     , maxResults_             (routine_desc->routineDesc()->maxResults)
     , stateAreaSize_          (routine_desc->routineDesc()->stateAreaSize)
     , externalFile_           ("", heap)
-    , externalPath_           (routine_desc->routineDesc()->libraryFileName, heap)
+    , externalPath_           ("", heap)
     , externalName_           ("", heap)
-    , librarySqlName_         (routine_desc->routineDesc()->librarySqlName, COM_UNKNOWN_NAME, FALSE, heap) //TODO
+    , librarySqlName_         (NULL) //TODO
     , signature_              (routine_desc->routineDesc()->signature, heap)
     , paramStyle_             (routine_desc->routineDesc()->paramStyle)
     , paramStyleVersion_      (COM_ROUTINE_PARAM_STYLE_VERSION_1)
@@ -378,7 +378,7 @@ NARoutine::NARoutine(const QualifiedName   &name,
     , actionPosition_         (0) // TODO
     , executionMode_          (COM_ROUTINE_SAFE_EXECUTION)
     , objectUID_              (routine_desc->routineDesc()->objectUID)
-    , dllName_                (routine_desc->routineDesc()->libraryFileName, heap)
+    , dllName_                ("", heap)
     , dllEntryPoint_          (routine_desc->routineDesc()->externalName, heap)
     , sasFormatWidth_         ("", heap) //TODO
     , systemName_             ("", heap) // TODO
@@ -390,6 +390,15 @@ NARoutine::NARoutine(const QualifiedName   &name,
     , privInfo_               (NULL)
     , heap_(heap)
 {
+  if (routine_desc->routineDesc()->libraryFileName != NULL)
+    {
+      externalPath_ = NAString(routine_desc->routineDesc()->libraryFileName, heap);
+      dllName_ = NAString(routine_desc->routineDesc()->libraryFileName, heap);      
+    }
+  if (routine_desc->routineDesc()->librarySqlName != NULL)
+    {
+      librarySqlName_ = ComObjectName(routine_desc->routineDesc()->librarySqlName, COM_UNKNOWN_NAME, FALSE, heap);
+    }
   char parallelism[5];
   CmGetComRoutineParallelismAsLit(routine_desc->routineDesc()->parallelism, parallelism);
   comRoutineParallelism_ = ((char *)parallelism);

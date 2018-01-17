@@ -1359,6 +1359,7 @@ enum ComRoutineLanguage { COM_UNKNOWN_ROUTINE_LANGUAGE
                         , COM_LANGUAGE_C
                         , COM_LANGUAGE_CPP
                         , COM_LANGUAGE_SQL
+                        , COM_LANGUAGE_PLSQL
                         };
 
 #define COM_UNKNOWN_ROUTINE_LANGUAGE_LIT            "  "
@@ -1366,6 +1367,7 @@ enum ComRoutineLanguage { COM_UNKNOWN_ROUTINE_LANGUAGE
 #define COM_LANGUAGE_C_LIT                          "C "
 #define COM_LANGUAGE_CPP_LIT                        "C+"
 #define COM_LANGUAGE_SQL_LIT                        "S "
+#define COM_LANGUAGE_PLSQL_LIT                      "PL"
 
 // Parameter passing styles for stored procedures and user-defined
 // functions.
@@ -1377,6 +1379,7 @@ enum ComRoutineParamStyle { COM_UNKNOWN_ROUTINE_PARAM_STYLE
                           , COM_STYLE_SQLROW
                           , COM_STYLE_SQLROW_TM
                           , COM_STYLE_CPP_OBJ
+                          , COM_STYLE_PLSQL                          
                           };
 
 #define COM_UNKNOWN_ROUTINE_PARAM_STYLE_LIT         "  "
@@ -1387,6 +1390,7 @@ enum ComRoutineParamStyle { COM_UNKNOWN_ROUTINE_PARAM_STYLE
 #define COM_STYLE_SQLROW_LIT                        "SR"
 #define COM_STYLE_SQLROW_TM_LIT                     "TM"
 #define COM_STYLE_CPP_OBJ_LIT                       "C+"
+#define COM_STYLE_PLSQL_LIT                         "PL"
 
 #define COM_UNKNOWN_ROUTINE_PARAM_STYLE_VERSION       0
 #define COM_ROUTINE_PARAM_STYLE_VERSION_1             1
@@ -1485,6 +1489,7 @@ enum ComRoutineTransactionAttributes { COM_UNKNOWN_ROUTINE_TRANSACTION_ATTRIBUTE
 
 enum ComRoutineType { COM_UNKNOWN_ROUTINE_TYPE
                     , COM_PROCEDURE_TYPE
+                    , COM_PROCEDURE_LANG_TYPE
                     , COM_SCALAR_UDF_TYPE
                     , COM_TABLE_UDF_TYPE
                     , COM_UNIVERSAL_UDF_TYPE

@@ -2490,7 +2490,8 @@ StmtDDLCreateRoutine::StmtDDLCreateRoutine(const QualifiedName & aRoutineName,
           numberOfUniqueOutputValuesSpecified_(FALSE),
           specialAttributesText_("", heap),
           specialAttributesSpecified_(FALSE),
-          firstReturnedParamPosWithinParamArray_(-1)
+          firstReturnedParamPosWithinParamArray_(-1),
+          src(NULL)
 {
   setChild(INDEX_ROUTINE_PARAM_LIST, pParamList);
   setChild(INDEX_ROUTINE_RETURNS_LIST, pReturnsList);
@@ -2508,6 +2509,8 @@ StmtDDLCreateRoutine::StmtDDLCreateRoutine(const QualifiedName & aRoutineName,
     parallelism_ = COM_ROUTINE_ANY_PARALLELISM;
     stateAreaSize_ = 0; // NO STATE AREA
   }
+
+  src = new (STMTHEAP) NAString("", heap);
 }
 
 //
@@ -2523,6 +2526,9 @@ StmtDDLCreateRoutine::~StmtDDLCreateRoutine()
 
   if (pOwner_)
     delete pOwner_;
+
+  if (src)
+    delete src;
 }
 
 //
@@ -2580,6 +2586,7 @@ StmtDDLCreateRoutine::synthesize()
   switch (getRoutineType())
   {
   case COM_PROCEDURE_TYPE:
+  case COM_PROCEDURE_LANG_TYPE:
     routineQualName_.setObjectNameSpace(COM_TABLE_NAME);
     break;
   case COM_ACTION_UDF_TYPE:
@@ -2620,7 +2627,7 @@ StmtDDLCreateRoutine::synthesize()
       {
         pParamDef0 = (*pParamList)[i0]->castToElemDDLParamDef();
         ComASSERT(pParamDef0 NEQ NULL);
-        if ((getRoutineType() == COM_PROCEDURE_TYPE) AND
+        if ((getRoutineType() == COM_PROCEDURE_TYPE || getRoutineType() == COM_PROCEDURE_LANG_TYPE) AND
             (pParamDef0->getParamDataType()->getTypeQualifier() == NA_NUMERIC_TYPE))
         {
           if (((NumericType *)pParamDef0->getParamDataType())->isUnsigned())
@@ -2643,7 +2650,7 @@ StmtDDLCreateRoutine::synthesize()
 
   if (getChild(INDEX_ROUTINE_RETURNS_LIST) NEQ NULL)
   {
-    if (getRoutineType() == COM_PROCEDURE_TYPE)
+    if (getRoutineType() == COM_PROCEDURE_TYPE || getRoutineType() == COM_PROCEDURE_LANG_TYPE)
     {
       *SqlParser_Diags << DgSqlCode(-3261);
       // Do not have to exit/return here.
@@ -2682,7 +2689,7 @@ StmtDDLCreateRoutine::synthesize()
 
   if (getChild(INDEX_ROUTINE_PASSTHROUGH_LIST) NEQ NULL)
   {
-    if (getRoutineType() == COM_PROCEDURE_TYPE)
+    if (getRoutineType() == COM_PROCEDURE_TYPE || getRoutineType() == COM_PROCEDURE_LANG_TYPE)
     {
       *SqlParser_Diags << DgSqlCode(-3263);
       return;
@@ -2727,11 +2734,13 @@ StmtDDLCreateRoutine::synthesize()
   // More semantic checks
   //
 
+  if ( getLanguageType() != COM_LANGUAGE_PLSQL )
   if ( NOT isStmtDDLAlterRoutineParseNode() AND
        NOT externalNameSpecified_ AND getRoutineType() NEQ COM_ACTION_UDF_TYPE )
   {
      *SqlParser_Diags << DgSqlCode(-3205);
-     if (getRoutineType() == COM_PROCEDURE_TYPE) // keep the old behavior to avoid regression
+     if (getRoutineType() == COM_PROCEDURE_TYPE || getRoutineType() == COM_PROCEDURE_LANG_TYPE)
+     // keep the old behavior to avoid regression
        return;
   }
 
@@ -2739,9 +2748,9 @@ StmtDDLCreateRoutine::synthesize()
   // SPJ
   // ---------------------------------------------------------------------
 
-  if (getRoutineType() == COM_PROCEDURE_TYPE)
+  if (getRoutineType() == COM_PROCEDURE_TYPE || getRoutineType() == COM_PROCEDURE_LANG_TYPE)
   {
-
+    if ( getLanguageType() != COM_LANGUAGE_PLSQL )
     if ( ! externalPathSpecified_ && ! libraryNameSpecified_)
     {
       *SqlParser_Diags << DgSqlCode(-3201);
@@ -2773,6 +2782,7 @@ StmtDDLCreateRoutine::synthesize()
     externalName_ = externalName_.strip(NAString::both);
 
     size_t namSize = externalName_.length() - 1;
+    if ( getLanguageType() != COM_LANGUAGE_PLSQL )
     if ( namSize < 2 )
     {
       *SqlParser_Diags << DgSqlCode(-3204);
@@ -2788,6 +2798,7 @@ StmtDDLCreateRoutine::synthesize()
       externalName_ = externalName_.strip(); // Strip trailing blanks
 
       namSize = externalName_.length() - 1;  // Remaining name
+      if ( getLanguageType() != COM_LANGUAGE_PLSQL )
       if ( namSize < 2 )
       {
         *SqlParser_Diags << DgSqlCode(-3204);
@@ -2796,6 +2807,7 @@ StmtDDLCreateRoutine::synthesize()
     }
 
     // Find the method-name portion.
+    if ( getLanguageType() != COM_LANGUAGE_PLSQL )
     if ((pos=externalName_.last('.')) EQU NA_NPOS)
     {
       *SqlParser_Diags << DgSqlCode(-3204); // Badly formed
@@ -2807,6 +2819,7 @@ StmtDDLCreateRoutine::synthesize()
       javaClassName_ = externalName_.remove (pos);
     };
 
+    if ( getLanguageType() != COM_LANGUAGE_PLSQL )
     if ( ( javaMethodName_.length() < 1 ) ||
          ( javaClassName_.length() < 1 ) )
     {
@@ -2814,7 +2827,7 @@ StmtDDLCreateRoutine::synthesize()
       return;
     }
 
-  } // end if (getRoutineType() == COM_PROCEDURE_TYPE)
+  } // end if (getRoutineType() == COM_PROCEDURE_TYPE || getRoutineType() == COM_PROCEDURE_LANG_TYPE)
 
   // ---------------------------------------------------------------------
   // UDF or (routine) action
@@ -2957,6 +2970,7 @@ StmtDDLCreateRoutine::synthesize()
     {
       // Trim any leading and trailing blanks
       externalName_ = externalName_.strip(NAString::both);
+      if ( getLanguageType() != COM_LANGUAGE_PLSQL )
       if (externalName_.isNull())
       {
         *SqlParser_Diags << DgSqlCode(-3204); // Badly formed

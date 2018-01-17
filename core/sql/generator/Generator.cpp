@@ -2341,13 +2341,19 @@ TrafDesc *Generator::createVirtualRoutineDesc(
    strcpy(routine_desc->routineDesc()->routineName, routineName);
    routine_desc->routineDesc()->externalName = new GENHEAP(space) char[strlen(routineInfo->external_name)+1];
    strcpy(routine_desc->routineDesc()->externalName, routineInfo->external_name);
-   routine_desc->routineDesc()->librarySqlName = NULL; 
-   routine_desc->routineDesc()->libraryFileName = new GENHEAP(space) char[strlen(routineInfo->library_filename)+1];
-   strcpy(routine_desc->routineDesc()->libraryFileName, routineInfo->library_filename);
+   routine_desc->routineDesc()->librarySqlName = NULL;
+   if (routineInfo->library_filename != NULL)
+     {
+       routine_desc->routineDesc()->libraryFileName = new GENHEAP(space) char[strlen(routineInfo->library_filename)+1];
+       strcpy(routine_desc->routineDesc()->libraryFileName, routineInfo->library_filename);
+     }
    routine_desc->routineDesc()->signature = new GENHEAP(space) char[strlen(routineInfo->signature)+1];
    strcpy(routine_desc->routineDesc()->signature, routineInfo->signature);
-   routine_desc->routineDesc()->librarySqlName = new GENHEAP(space) char[strlen(routineInfo->library_sqlname)+1];
-   strcpy(routine_desc->routineDesc()->librarySqlName, routineInfo->library_sqlname);
+   if (routineInfo->library_sqlname != NULL)
+     {
+       routine_desc->routineDesc()->librarySqlName = new GENHEAP(space) char[strlen(routineInfo->library_sqlname)+1];
+       strcpy(routine_desc->routineDesc()->librarySqlName, routineInfo->library_sqlname);
+     }
    routine_desc->routineDesc()->language  = 
            CmGetComRoutineLanguageAsRoutineLanguage(routineInfo->language_type);
    routine_desc->routineDesc()->UDRType  = 

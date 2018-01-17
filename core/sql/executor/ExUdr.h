@@ -577,6 +577,7 @@ protected:
   UdrDataBuffer *requestBuffer_;
   UdrDataBuffer **childInputBuffers_; // array of child table buffers
   queue_index nextToSend_;
+  ComRoutineLanguage languageType_;
   ExUdrServer *udrServer_;
   UdrClientDataStream *dataStream_;
   UdrClientControlStream *outstandingControlStream_;

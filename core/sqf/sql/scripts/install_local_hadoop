@@ -281,7 +281,7 @@ HBASE_HOME=${MY_SW_ROOT}/hbase
   # - TPC-DS from tpc.org (for Hive sample DB)
   # ------------- please customize this line ----------------------
   if [ -z "$MY_LOCAL_SW_DIST" ]; then
-    MY_LOCAL_SW_DIST=/add_your_local_shared_folder_here
+    MY_LOCAL_SW_DIST=/home/adamas/tmp/local_software_tools
   fi
 
   # also set http_proxy and ftp_proxy if necessary, to download

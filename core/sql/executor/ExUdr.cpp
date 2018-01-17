@@ -229,6 +229,7 @@ ExUdrTcb::ExUdrTcb(const ExUdrTdb &udrTdb,
     requestBuffer_(NULL),
     childInputBuffers_(NULL),
     nextToSend_(0),
+    languageType_(ComRoutineLanguage(udrTdb.languageType_)),
     udrServer_(NULL),
     dataStream_(NULL),
     outstandingControlStream_(NULL),
@@ -316,9 +317,12 @@ ExUdrTcb::ExUdrTcb(const ExUdrTdb &udrTdb,
     ComRoutineParamStyle paramStyle = udrTdb.getParamStyle();
     switch (paramStyle)
     {
+      case COM_STYLE_GENERAL:
+        UdrDebug0("  Parameter style GENERAL");
+        break;
       case COM_STYLE_JAVA_CALL:
         UdrDebug0("  Parameter style JAVA (call)");
-        break;
+        break;        
       case COM_STYLE_JAVA_OBJ:
         UdrDebug0("  Parameter style JAVA (object)");
         break;
@@ -334,6 +338,9 @@ ExUdrTcb::ExUdrTcb(const ExUdrTdb &udrTdb,
       case COM_STYLE_CPP_OBJ:
         UdrDebug0("  Parameter style C++");
         break;
+      case COM_STYLE_PLSQL:
+        UdrDebug0("  Parameter style PLSQL");
+        break;        
       default:
         ex_assert(0, "Invalid PARAMETER STYLE");
         break;
@@ -356,6 +363,12 @@ ExUdrTcb::ExUdrTcb(const ExUdrTdb &udrTdb,
         break;
       case COM_LANGUAGE_CPP:
         UdrDebug0("  Language C++");
+        break;
+      case COM_LANGUAGE_SQL:
+        UdrDebug0("  Language SQL");
+        break;
+      case COM_LANGUAGE_PLSQL:
+        UdrDebug0("  Language PLSQL");
         break;
       default:
         ex_assert(0, "Invalid LANGUAGE");
@@ -631,12 +644,18 @@ Int32 ExUdrTcb::fixup()
 
   UdrDebug1("[BEGIN TCB FIXUP] %p", this);
   setUdrTcbState(FIXUP);
-    
+
   //
   // Non-zero return value indicates an error
   //
   const Int32 FIXUP_SUCCESS = 0;
   const Int32 FIXUP_ERROR = 1;
+
+  if (languageType_ == COM_LANGUAGE_PLSQL)
+  {
+      // For PLSQL, do nothing at FIXUP stage
+      return FIXUP_SUCCESS;
+  }
 
   // The result variable will have the value FIXUP_ERROR until we are
   // sure the following are true
@@ -645,7 +664,6 @@ Int32 ExUdrTcb::fixup()
   Int32 result = FIXUP_ERROR;
 
   NABoolean isResultSet = myTdb().isResultSetProxy();
-  
 
   // The code is written to retry fixup for this TCB some number of
   // times.  Retrying fixup would allow us to send a LOAD message to a
@@ -794,36 +812,35 @@ Int32 ExUdrTcb::fixup()
       }
 
       if (sendControlMessage(isResultSet ? UDR_MSG_RS_LOAD : UDR_MSG_LOAD, 
-                             TRUE))
+                  TRUE))
       {
-        if (verifyUdrServerProcessId())
-        {
-          //
-          // Everything went as planned. We have a running server, the
-          // LOAD message was sent and following the send, the server
-          // process ID is still valid which should indicate that
-          // during the send the IPC layer did not detect an IPC
-          // error. The send() methods in our IPC stream and
-          // connection classes return void, therefore errors can
-          // occur during a send() without the caller of send() being
-          // notified, and that is why we do the
-          // verifyUdrServerProcessId() test following the send.
-          //
-          result = FIXUP_SUCCESS;
-        }
-        else
-        {
-          UdrDebug0("  ***");
-          UdrDebug0("  *** WARNING: LOAD message successfully sent but");
-          UdrDebug0("  ***          an IPC error occurred or perhaps the");
-          UdrDebug0("  ***          server is no longer running.");
-          UdrDebug0("  ***");
-        }
-      
-      } // if (sendControlMessage())
+          if (verifyUdrServerProcessId())
+          {
+              //
+              // Everything went as planned. We have a running server, the
+              // LOAD message was sent and following the send, the server
+              // process ID is still valid which should indicate that
+              // during the send the IPC layer did not detect an IPC
+              // error. The send() methods in our IPC stream and
+              // connection classes return void, therefore errors can
+              // occur during a send() without the caller of send() being
+              // notified, and that is why we do the
+              // verifyUdrServerProcessId() test following the send.
+              //
+              result = FIXUP_SUCCESS;
+          }
+          else
+          {
+              UdrDebug0("  ***");
+              UdrDebug0("  *** WARNING: LOAD message successfully sent but");
+              UdrDebug0("  ***          an IPC error occurred or perhaps the");
+              UdrDebug0("  ***          server is no longer running.");
+              UdrDebug0("  ***");
+          }
+          } // if (sendControlMessage())
     } // if (status == ExUdrServer::EX_UDR_SUCCESS)
   } // for i = 0 to numRetries
-  
+
   if (result == FIXUP_SUCCESS)
   {
     allocateDataStream();
@@ -866,6 +883,25 @@ ExWorkProcRetcode ExUdrTcb::work()
 #endif // UDR_DEBUG
 
   ExWorkProcRetcode result = WORK_OK;
+
+  if (languageType_ == COM_LANGUAGE_PLSQL)
+  {
+      // TODO(adamas): send the query to HPL server, and reutrn directly
+      insertUpQueueEntry(ex_queue::Q_NO_DATA);
+      
+      return result;
+      /*
+         s = new (getIpcHeap())
+         UdrClientControlStream(myIpcEnv(),
+         (callbackRequired ? this : NULL),
+         myExeStmtGlobals(),
+         FALSE,
+         isTransactional);
+
+         NABoolean sendWaited = FALSE;
+         s->send(sendWaited, transIdToSend);
+     */
+  }
 
   result = checkReceive();
   UdrDebug1("  [WORK] checkReceive() returned %s",
@@ -1801,6 +1837,8 @@ void ExUdrTcb::releaseServerResources()
     else
     {
       UdrDebug0("    An UNLOAD message is about to be sent");
+      // TODO(adamas): do not send UDR_MSG_UNLOAD
+      if (languageType_ != COM_LANGUAGE_PLSQL)
       sendControlMessage(UDR_MSG_UNLOAD, FALSE);
     }
   }

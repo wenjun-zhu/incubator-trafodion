@@ -1297,6 +1297,11 @@ protected:
 
   void createSeabaseRoutine(StmtDDLCreateRoutine  * createRoutineNode,
                             NAString &currCatName, NAString &currSchName);
+
+  void createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
+                                      StmtDDLCreateRoutine * createRoutineNode,
+                                      NAString &currCatName,
+                                      NAString &currSchName);
   
   void dropSeabaseRoutine(StmtDDLDropRoutine  * dropRoutineNode,
                           NAString &currCatName, NAString &currSchName);

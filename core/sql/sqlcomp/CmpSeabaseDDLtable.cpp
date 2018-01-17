@@ -12811,7 +12811,6 @@ TrafDesc *CmpSeabaseDDL::getSeabaseRoutineDescInternal(const NAString &catName,
        getSystemCatalog(), SEABASE_MD_SCHEMA, SEABASE_OBJECTS,
        objectUID);
 
-
   cliRC = cliInterface.fetchRowsPrologue(buf, TRUE/*no exec*/);
   if (cliRC < 0)
   {
@@ -12827,9 +12826,134 @@ TrafDesc *CmpSeabaseDDL::getSeabaseRoutineDescInternal(const NAString &catName,
   }
   if (cliRC == 100) // did not find the row
   {
-     *CmpCommon::diags() << DgSqlCode(-CAT_OBJECT_DOES_NOT_EXIST_IN_TRAFODION)
-                        << DgString0(objName);
-     return NULL;
+      // do not join the library_uid table to find the PL/SQL object,
+      // which only exists in routines and objects
+      str_sprintf(buf, "select udr_type, language_type, deterministic_bool,"
+      " sql_access, call_on_null, isolate_bool, param_style,"
+      " transaction_attributes, max_results, state_area_size, external_name,"
+      " parallelism, user_version, external_security, execution_mode,"
+      " signature from %s.\"%s\".%s r"
+      " where r.udr_uid = %ld for read committed access",
+           getSystemCatalog(), SEABASE_MD_SCHEMA, SEABASE_ROUTINES,
+           objectUID);
+
+      cliRC = cliInterface.fetchRowsPrologue(buf, TRUE/*no exec*/);
+      if (cliRC < 0)
+      {
+         cliInterface.retrieveSQLDiagnostics(CmpCommon::diags());
+         return NULL;
+      }
+
+      cliRC = cliInterface.clearExecFetchClose(NULL, 0);
+      if (cliRC < 0)
+      {
+        cliInterface.retrieveSQLDiagnostics(CmpCommon::diags());
+         return NULL;
+      }
+      if (cliRC == 100) // did not find the row
+      {
+         *CmpCommon::diags() << DgSqlCode(-CAT_OBJECT_DOES_NOT_EXIST_IN_TRAFODION)
+                            << DgString0(objName);
+         return NULL;
+      }
+
+      char * ptr = NULL;
+      Lng32 len = 0;
+
+      ComTdbVirtTableRoutineInfo *routineInfo = new (STMTHEAP) ComTdbVirtTableRoutineInfo();
+
+      routineInfo->object_uid = objectUID;
+      routineInfo->object_owner_id = objectOwnerID;
+      routineInfo->schema_owner_id = schemaOwnerID;
+
+      routineInfo->routine_name = objName.data();
+      cliInterface.getPtrAndLen(1, ptr, len);
+      str_cpy_all(routineInfo->UDR_type, ptr, len);
+      routineInfo->UDR_type[len] =  '\0';
+      cliInterface.getPtrAndLen(2, ptr, len);
+      str_cpy_all(routineInfo->language_type, ptr, len);
+      routineInfo->language_type[len] = '\0';
+      cliInterface.getPtrAndLen(3, ptr, len);
+      if (*ptr == 'Y')
+         routineInfo->deterministic = 1;
+      else
+         routineInfo->deterministic = 0;
+      cliInterface.getPtrAndLen(4, ptr, len);
+      str_cpy_all(routineInfo->sql_access, ptr, len);
+      routineInfo->sql_access[len] = '\0';
+      cliInterface.getPtrAndLen(5, ptr, len);
+      if (*ptr == 'Y')
+         routineInfo->call_on_null = 1;
+      else
+         routineInfo->call_on_null = 0;
+      cliInterface.getPtrAndLen(6, ptr, len);
+      if (*ptr == 'Y')
+         routineInfo->isolate = 1;
+      else
+         routineInfo->isolate = 0;
+      cliInterface.getPtrAndLen(7, ptr, len);
+      str_cpy_all(routineInfo->param_style, ptr, len);
+      routineInfo->param_style[len] = '\0';
+      cliInterface.getPtrAndLen(8, ptr, len);
+      str_cpy_all(routineInfo->transaction_attributes, ptr, len);
+      routineInfo->transaction_attributes[len] = '\0';
+      cliInterface.getPtrAndLen(9, ptr, len);
+      routineInfo->max_results = *(Int32 *)ptr;
+      cliInterface.getPtrAndLen(10, ptr, len);
+      routineInfo->state_area_size = *(Int32 *)ptr;
+      cliInterface.getPtrAndLen(11, ptr, len);
+      routineInfo->external_name = new (STMTHEAP) char[len+1];    
+      str_cpy_and_null((char *)routineInfo->external_name, ptr, len, '\0', ' ', TRUE);
+      cliInterface.getPtrAndLen(12, ptr, len);
+      str_cpy_all(routineInfo->parallelism, ptr, len);
+      routineInfo->parallelism[len] = '\0';
+      cliInterface.getPtrAndLen(13, ptr, len);
+      str_cpy_all(routineInfo->user_version, ptr, len);
+      routineInfo->user_version[len] = '\0';
+      cliInterface.getPtrAndLen(14, ptr, len);
+      str_cpy_all(routineInfo->external_security, ptr, len);
+      routineInfo->external_security[len] = '\0';
+      cliInterface.getPtrAndLen(15, ptr, len);
+      str_cpy_all(routineInfo->execution_mode, ptr, len);
+      routineInfo->execution_mode[len] = '\0';
+      cliInterface.getPtrAndLen(16, ptr, len);
+      routineInfo->signature = new (STMTHEAP) char[len+1];    
+      str_cpy_and_null((char *)routineInfo->signature, ptr, len, '\0', ' ', TRUE);
+      
+      ComTdbVirtTableColumnInfo *paramsArray;
+      Lng32 numParams;
+      char direction[50];
+      str_sprintf(direction, "'%s', '%s', '%s'", 
+                          COM_INPUT_PARAM_LIT, COM_OUTPUT_PARAM_LIT,
+                          COM_INOUT_PARAM_LIT);
+      // Params
+      if (getSeabaseColumnInfo(&cliInterface,
+                               objectUID,
+                               catName, schName, objName,
+                               (char *)direction,
+                               NULL,
+                               NULL,
+                               &numParams,
+                               &paramsArray) < 0)
+        {
+          processReturn();
+          return NULL;
+        } 
+      
+      ComTdbVirtTablePrivInfo * privInfo = getSeabasePrivInfo(objectUID, objectType);
+
+      TrafDesc *routine_desc = NULL;
+      routine_desc = Generator::createVirtualRoutineDesc(
+           objName.data(),
+           routineInfo,
+           numParams,
+           paramsArray,
+           privInfo,
+           NULL);
+
+      if (routine_desc == NULL)
+         processReturn();
+      return routine_desc;
   }
 
   char * ptr = NULL;

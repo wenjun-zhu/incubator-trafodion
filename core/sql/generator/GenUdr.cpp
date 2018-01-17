@@ -219,6 +219,9 @@ ExplainTuple *IsolatedNonTableUDR::addSpecificExplainInfo(ExplainTupleMaster *ex
     case COM_LANGUAGE_SQL:
       description += "SQL";
       break;
+    case COM_LANGUAGE_PLSQL:
+      description += "PLSQL";
+      break;
     case COM_UNKNOWN_ROUTINE_LANGUAGE:
     default:
     {
@@ -232,9 +235,12 @@ ExplainTuple *IsolatedNonTableUDR::addSpecificExplainInfo(ExplainTupleMaster *ex
   description += " parameter_style: ";
   switch (getEffectiveNARoutine()->getParamStyle())
   {
+    case COM_STYLE_GENERAL:
+      description += "GENERAL";
+      break;
     case COM_STYLE_JAVA_CALL:
       description += "JAVA";
-      break;
+      break;      
     case COM_STYLE_JAVA_OBJ:
       description += "JAVA_OBJ";
       break;
@@ -249,6 +255,9 @@ ExplainTuple *IsolatedNonTableUDR::addSpecificExplainInfo(ExplainTupleMaster *ex
       break;
     case COM_STYLE_CPP_OBJ:
       description += "C++";
+      break;
+    case COM_STYLE_PLSQL:
+      description += "PLSQL";
       break;
     case COM_UNKNOWN_ROUTINE_PARAM_STYLE:
     default:

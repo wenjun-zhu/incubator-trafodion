@@ -357,6 +357,7 @@ static void enableMakeQuotedStringISO88591Mechanism()
 %token <stringval>  TOK_SBYTE_LITERAL		/* Single-byte string */
 %token <wstringval> TOK_MBYTE_LITERAL		/* Multi-byte (NCHAR) string */
 %token <stringval> SYSTEM_CPU_IDENTIFIER
+%token <stringval> routine_body
 %token <tokval> '('
 %token <tokval> ')'
 %token <tokval> '*'
@@ -924,6 +925,7 @@ static void enableMakeQuotedStringISO88591Mechanism()
 %token <tokval> TOK_PI
 %token <tokval> TOK_PIVOT
 %token <tokval> TOK_PIVOT_GROUP
+%token <tokval> TOK_PLSQL
 %token <tokval> TOK_POS
 %token <tokval> TOK_POSITION
 %token <tokval> TOK_POWER
@@ -2277,6 +2279,9 @@ static void enableMakeQuotedStringISO88591Mechanism()
 %type <tokval>                  return_tokens
 %type <pElemDDL>                optional_routine_returns_clause
 %type <pElemDDL>                routine_returns_clause
+%type <stringval>               optional_as_routine_body_clause
+%type <stringval>               as_routine_body_clause
+%type <stringval>               routine_body_clause
 %type <pElemDDL>                optional_passthrough_inputs_clause
 %type <pElemDDL>                passthrough_inputs_clause
 %type <pElemDDL>                optional_add_passthrough_inputs_clause
@@ -23981,11 +23986,11 @@ external_user_identifier : identifier
                                 }
 
 /* type pStmtDDL */
-
 routine_definition : TOK_CREATE TOK_PROCEDURE optional_if_not_exists_clause ddl_qualified_name
                         routine_params_list_clause
                         optional_create_routine_attribute_list
                         optional_by_auth_identifier
+                        //optional_as_routine_body_clause
                                 {
                                   QualifiedName noActionQualName(PARSERHEAP());
                                   StmtDDLCreateRoutine *pNode =
@@ -24001,11 +24006,16 @@ routine_definition : TOK_CREATE TOK_PROCEDURE optional_if_not_exists_clause ddl_
                                     );
                                   pNode->setCreateIfNotExists($3);
                                   pNode->setOwner($7/*optional_by_auth_identifier*/);
+
+                                  NAString *src = new (PARSERHEAP()) NAString("", PARSERHEAP());
+                                  // pNode->setSrc($8);    // as_routine_body_clause
+                                  pNode->setSrc(src);    // as_routine_body_clause
+
                                   pNode->synthesize();
                                   $$ = pNode;
                                   delete $4;  // ddl_qualified_name of routine
+                                  // delete $8;  // optional_as_routine_body_clause of routine
                                 }
-
   | TOK_CREATE create_scalar_function_tokens optional_if_not_exists_clause ddl_qualified_name
     routine_params_list_clause
     optional_routine_returns_clause
@@ -24303,6 +24313,33 @@ routine_returns_clause : return_tokens routine_return_param
 
 /* type tokval */
 return_tokens:  TOK_RETURN | TOK_RETURNS
+
+/* type NAString */
+optional_as_routine_body_clause : empty
+                                {
+                                        $$ = new (PARSERHEAP()) NAString("", PARSERHEAP());
+                                }
+                                | as_routine_body_clause
+                                {
+                                        $$ = $1;
+                                }
+/* type NAString */
+as_routine_body_clause: TOK_AS routine_body_clause
+                                {
+                                        $$ = $2;
+                                }
+
+/* TODO(adamas):
+        BEGIN...END
+   is not enough, use
+        $$...BEGIN...END...$$
+   instead later. */
+routine_body_clause: TOK_BEGIN routine_body TOK_END
+                {
+                        // $$ = new (PARSERHEAP()) NAString($2, strlen($2), PARSERHEAP);
+                        $$ = new (PARSERHEAP()) NAString(*$2);
+                }
+
 
 /* type pElemDDL */
 routine_return_params : '(' routine_return_param_list ')'
@@ -24712,6 +24749,10 @@ udr_language_clause : TOK_LANGUAGE TOK_JAVA
                     | TOK_LANGUAGE TOK_CPP
                                 {
                                   $$ = new (PARSERHEAP()) ElemDDLUdrLanguage(COM_LANGUAGE_CPP);
+                                } 
+                    | TOK_LANGUAGE TOK_PLSQL
+                                {
+                                  $$ = new (PARSERHEAP()) ElemDDLUdrLanguage(COM_LANGUAGE_PLSQL);
                                 } 
                     | TOK_LANGUAGE TOK_SQL
                                 {
@@ -33582,6 +33623,7 @@ nonreserved_word :      TOK_ABORT
                       | TOK_COPY
                       | TOK_COST
                       | TOK_CPP
+                      | TOK_PLSQL
                       | TOK_CPU
                       | TOK_CREATE_LIBRARY
                       | TOK_CREATE_MV

@@ -822,7 +822,7 @@ public:
 class TrafRoutineDesc : public TrafDesc {
 public:
   // why almost no initializers? see note at top of file
-  TrafRoutineDesc() : TrafDesc(DESC_ROUTINE_TYPE)
+ TrafRoutineDesc() : TrafDesc(DESC_ROUTINE_TYPE)
   {}
 
   // ---------------------------------------------------------------------

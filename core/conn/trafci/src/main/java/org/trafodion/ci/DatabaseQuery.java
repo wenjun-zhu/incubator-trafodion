@@ -108,6 +108,7 @@ public class DatabaseQuery extends QueryWrapper
            if(Boolean.getBoolean("trafci.enableTrace"))
              ex.printStackTrace();
            
+            // TODO(adamas): a exception when invoke 'call plus_one(1);'
            ErrorObject internalError = new ErrorObject(SessionError.INTERNAL_ERR.errorCode(), 
                    SessionError.INTERNAL_ERR.errorMessage() + " Details=" + ex.getMessage());
            

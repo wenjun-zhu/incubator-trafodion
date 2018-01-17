@@ -73,6 +73,8 @@
 
 #include "ComCextdecs.h"
 #include <sys/stat.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 
 // *****************************************************************************
@@ -145,6 +147,8 @@ static void getLanguageTypeLit(ComRoutineLanguage val, NAString& result)
       result = COM_LANGUAGE_CPP_LIT;
     else if (val == COM_LANGUAGE_SQL)
       result = COM_LANGUAGE_SQL_LIT;
+    else if (val == COM_LANGUAGE_PLSQL)
+      result = COM_LANGUAGE_PLSQL_LIT;    
     else
       result = COM_UNKNOWN_ROUTINE_LANGUAGE_LIT;
   }
@@ -179,6 +183,8 @@ static void getParamStyleLit(ComRoutineParamStyle val, NAString& result)
       result = COM_STYLE_SQLROW_TM_LIT;
      else if (val == COM_STYLE_CPP_OBJ)
       result = COM_STYLE_CPP_OBJ_LIT;
+     else if (val == COM_STYLE_PLSQL)
+      result = COM_STYLE_PLSQL_LIT;
     else 
       result = COM_UNKNOWN_ROUTINE_PARAM_STYLE_LIT;
   }
@@ -251,7 +257,7 @@ short CmpSeabaseDDL::getUsingRoutines(ExeCliInterface *cliInterface,
   return 0;
 }
 
-
+// TODO(adamas): modify this?
 void CmpSeabaseDDL::createSeabaseLibrary(
 				      StmtDDLCreateLibrary * createLibraryNode,
 				      NAString &currCatName, 
@@ -771,6 +777,21 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       return;
     }
 
+  Int64 libUID = 0;
+  Int64 objUID = -1;
+  NAString externalName;
+#define MAX_SIGNATURE_LENGTH 8193
+  // Allocate buffer for generated signature
+  char sigBuf[MAX_SIGNATURE_LENGTH];
+  sigBuf[0] = '\0';
+  Lng32 cliRC = 0;
+
+  if (language == COM_LANGUAGE_PLSQL)
+  {
+      // do not check the path for PL/SQL, just store the code
+      createSeabaseRoutine_PLSQL(cliInterface, createRoutineNode,
+              currCatName, currSchName);
+  } else {
   
   ComObjectName libName(createRoutineNode->
                         getLibraryName().getQualifiedNameAsAnsiString());
@@ -780,7 +801,6 @@ void CmpSeabaseDDL::createSeabaseRoutine(
   NAString libObjNamePart = libName.getObjectNamePartAsAnsiString(TRUE);
   const NAString extLibraryName = libName.getExternalName(TRUE);
   char externalPath[512] ;
-  Lng32 cliRC = 0;
 	
   // this call needs to change
   Int64 libUID = getObjectUID(&cliInterface, 
@@ -836,7 +856,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       processReturn();
       return;
     }
-
+ 
   char * ptr = NULL;
   Lng32 len = 0;
   cliInterface.getPtrAndLen(1, ptr, len);
@@ -928,7 +948,6 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       return;
     }
 
-  NAString externalName;
   if (language == COM_LANGUAGE_JAVA &&
       style == COM_STYLE_JAVA_CALL)
     {
@@ -989,10 +1008,6 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       processReturn();
       return;
     }
-#define MAX_SIGNATURE_LENGTH 8193
-  // Allocate buffer for generated signature
-  char sigBuf[MAX_SIGNATURE_LENGTH];
-  sigBuf[0] = '\0';
 
   if (style == COM_STYLE_JAVA_CALL) 
   {
@@ -1143,6 +1158,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       }
 
     // use a CLI call to validate that the library contains the routine
+    // TODO(adamas): note this
     if (cliInterface.getRoutine(
              NULL, // No InvocationInfo specified in this step
              0,
@@ -1180,7 +1196,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
     }
 
   ComTdbVirtTableTableInfo * tableInfo = new(STMTHEAP) ComTdbVirtTableTableInfo[1];
-  tableInfo->tableName = NULL,
+  tableInfo->tableName = NULL;
   tableInfo->createTime = 0;
   tableInfo->redefTime = 0;
   tableInfo->objUID = 0;
@@ -1193,7 +1209,6 @@ void CmpSeabaseDDL::createSeabaseRoutine(
   tableInfo->rowFormat = COM_UNKNOWN_FORMAT_TYPE;
   tableInfo->objectFlags = 0;
 
-  Int64 objUID = -1;
   if (updateSeabaseMDTable(&cliInterface, 
 			   catalogNamePart, schemaNamePart, objectNamePart,
 			   COM_USER_DEFINED_ROUTINE_OBJECT,
@@ -1216,6 +1231,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       processReturn();
       return;
     }
+  }
 
   NAString udrType;
   getRoutineTypeLit(createRoutineNode->getRoutineType(), udrType);
@@ -1234,7 +1250,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
   NAString executionMode;
   getExecutionModeLit(createRoutineNode->getExecutionMode(), executionMode);
   
-
+  // TODO(adamas): add a field named `src` later
   char * query = new(STMTHEAP) char[2000+MAX_SIGNATURE_LENGTH];
   str_sprintf(query, "insert into %s.\"%s\".%s values (%ld, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', '%s', '%s', '%s', %ld, '%s', 0)",
 	      getSystemCatalog(), SEABASE_MD_SCHEMA, SEABASE_ROUTINES,
@@ -1256,6 +1272,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
               executionMode.data(),
               libUID,
               sigBuf);
+            // createRoutineNode->getSrc().data()
   
   cliRC = cliInterface.executeImmediate(query);
   NADELETEBASIC(query, STMTHEAP);
@@ -1302,6 +1319,216 @@ void CmpSeabaseDDL::createSeabaseRoutine(
   processReturn();
   return;
 }
+
+void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
+                                      StmtDDLCreateRoutine * createRoutineNode,
+                                      NAString &currCatName,
+                                      NAString &currSchName)
+{
+    // TODO(adamas): output the related info
+    // LOG_ERROR();
+
+    while (0) {
+        // send the text to the HPL/SQL server
+        createRoutineNode->getSrc();
+
+        // connect the HPL/SQL server, and send the CreateStmt
+        string ip = "localhost";
+        int port = 5678;
+        struct sockaddr_in serv_addr;
+        struct hostent *server;
+
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            assert(0);
+            // LOG_ERROR("ERROR opening socket");
+        }
+
+        server = gethostbyname(ip.c_str());
+        if (server == NULL) {
+            fprintf(stderr,"ERROR, no such host\n");
+            exit(0);
+        }
+
+        memset(&serv_addr, 0, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_port = htons(port);
+        inet_pton(AF_INET, ip.data(), &serv_addr.sin_addr);
+
+        if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+            assert(0);
+            // LOG_ERROR("ERROR connecting");
+        }
+
+        const char* buffer = createRoutineNode->getSrc()->data();
+        int n = write(sockfd, buffer, strlen(buffer));
+        if (n < 0) {
+            assert(0);
+            //LOG_ERROR("ERROR writing to socket");
+        }
+
+        // LOG_ERROR, finish sending the creation procedure
+        close(sockfd);
+
+        return;
+    };
+
+    // Verify that current user has authority to create the routine
+    // User must be DB__ROOT or have privileges. Ignored.
+
+    // ignore signature
+
+    // Parameter info
+    ElemDDLParamDefArray &routineParamArray =
+        createRoutineNode->getParamArray();
+    Lng32 numParams = routineParamArray.entries();
+
+    ComTdbVirtTableColumnInfo * colInfoArray = (ComTdbVirtTableColumnInfo*)
+        new(STMTHEAP) ComTdbVirtTableColumnInfo[numParams];
+
+    if (buildColInfoArray(&routineParamArray, colInfoArray))
+    {
+        processReturn();
+        return;
+    }
+
+    Int32 objectOwnerID = SUPER_USER;
+    Int32 schemaOwnerID = SUPER_USER;
+
+    ComTdbVirtTableTableInfo * tableInfo = new(STMTHEAP) ComTdbVirtTableTableInfo[1];
+    tableInfo->tableName = NULL;
+    tableInfo->createTime = 0;
+    tableInfo->redefTime = 0;
+    tableInfo->objUID = 0;
+    tableInfo->objOwnerID = objectOwnerID;
+    tableInfo->schemaOwnerID = schemaOwnerID;
+    tableInfo->isAudited = 1;
+    tableInfo->validDef = 1;
+    tableInfo->hbaseCreateOptions = NULL;
+    tableInfo->numSaltPartns = 0;
+    tableInfo->rowFormat = COM_UNKNOWN_FORMAT_TYPE;
+    tableInfo->objectFlags = 0;
+
+    Int64 objUID = -1;
+
+    ComObjectName routineName(createRoutineNode->getRoutineName());
+    const NAString catalogNamePart =
+        routineName.getCatalogNamePartAsAnsiString();
+    const NAString schemaNamePart =
+        routineName.getSchemaNamePartAsAnsiString(TRUE);
+    const NAString objectNamePart =
+        routineName.getObjectNamePartAsAnsiString(TRUE);
+
+    ExpHbaseInterface * ehi = NULL;
+
+    ehi = allocEHI();
+    if (ehi == NULL)
+    {
+        processReturn();
+        return;
+    }
+
+    if (updateSeabaseMDTable(&cliInterface,
+                catalogNamePart, schemaNamePart, objectNamePart,
+                COM_USER_DEFINED_ROUTINE_OBJECT,
+                "N",
+                tableInfo,
+                numParams,
+                colInfoArray,
+                0, NULL,
+                0, NULL,
+                objUID))
+    {
+        deallocEHI(ehi);
+        processReturn();
+        return;
+    }
+
+    if (objUID == -1)
+    {
+        deallocEHI(ehi);
+        processReturn();
+        return;
+    }
+
+    ComRoutineLanguage language   = createRoutineNode->getLanguageType();
+    ComRoutineParamStyle style    = createRoutineNode->getParamStyle();
+
+    NAString udrType;
+    getRoutineTypeLit(createRoutineNode->getRoutineType(), udrType);
+    NAString languageType;
+    getLanguageTypeLit(language, languageType);
+    NAString sqlAccess;
+    getSqlAccessLit(createRoutineNode->getSqlAccess(), sqlAccess);
+    NAString paramStyle;
+    getParamStyleLit(style, paramStyle);
+    NAString transactionAttributes;
+    getTransAttributesLit(createRoutineNode->getTransactionAttributes(), transactionAttributes);
+    NAString parallelism;
+    getParallelismLit(createRoutineNode->getParallelism(), parallelism);
+    NAString externalSecurity;
+    getExternalSecurityLit(createRoutineNode->getExternalSecurity(), externalSecurity);
+    NAString executionMode;
+    getExecutionModeLit(createRoutineNode->getExecutionMode(), executionMode);
+
+
+    // TODO(adamas): add a field named src
+    char * query = new(STMTHEAP) char[2000+MAX_SIGNATURE_LENGTH];
+    str_sprintf(query, "insert into %s.\"%s\".%s values (%ld, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', '%s', '%s', '%s', %ld, '%s', 0)",
+            getSystemCatalog(), SEABASE_MD_SCHEMA, SEABASE_ROUTINES,
+            objUID,
+            udrType.data(),
+            languageType.data(),
+            createRoutineNode->isDeterministic() ? "Y" : "N" ,
+            sqlAccess.data(),
+            createRoutineNode->isCallOnNull() ? "Y" : "N" ,
+            createRoutineNode->isIsolate() ? "Y" : "N" ,
+            paramStyle.data(),
+            transactionAttributes.data(),
+            createRoutineNode->getMaxResults(),
+            createRoutineNode->getStateAreaSize(),
+            "", // externalName.data(),
+            parallelism.data(),
+            createRoutineNode->getUserVersion().data(),
+            externalSecurity.data(),
+            executionMode.data(),
+            0L, // libUID,
+            "");     // sigBuf,
+            // createRoutineNode->getSrc()->data());
+
+    Lng32 cliRC = cliInterface.executeImmediate(query);
+    NADELETEBASIC(query, STMTHEAP);
+    if (cliRC < 0)
+    {
+        cliInterface.retrieveSQLDiagnostics(CmpCommon::diags());
+        processReturn();
+        return;
+    }
+
+    // hope to remove this call soon by setting the valid flag to Y sooner
+    if (updateObjectValidDef(&cliInterface,
+                catalogNamePart, schemaNamePart, objectNamePart,
+                COM_USER_DEFINED_ROUTINE_OBJECT_LIT,
+                "Y"))
+    {
+        deallocEHI(ehi);
+        processReturn();
+        return;
+    }
+
+    // Remove cached entries in other processes
+    NARoutineDB *pRoutineDBCache  = ActiveSchemaDB()->getNARoutineDB();
+    QualifiedName qualRoutineName(routineName, STMTHEAP);
+    pRoutineDBCache->removeNARoutine(qualRoutineName,
+            ComQiScope::REMOVE_FROM_ALL_USERS,
+            objUID,
+            createRoutineNode->ddlXns(), FALSE);
+
+    processReturn();
+
+    return;
+}
+
 
 void CmpSeabaseDDL::dropSeabaseRoutine(StmtDDLDropRoutine * dropRoutineNode,
                                        NAString &currCatName, 

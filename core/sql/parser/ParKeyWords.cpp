@@ -800,6 +800,7 @@ ParKeyWord ParKeyWords::keyWords_[] = {
   ParKeyWord("PID",                TOK_PID,         NONRESTOKEN_),
   ParKeyWord("PIVOT_GROUP",                TOK_PIVOT_GROUP,         NONRESTOKEN_),
   ParKeyWord("PIVOT",                TOK_PIVOT,         NONRESTOKEN_),
+  ParKeyWord("PLSQL",              TOK_PLSQL,         NONRESTOKEN_),
   ParKeyWord("POOL",               TOK_POOL,        NONRESTOKEN_),
   ParKeyWord("POPULATE",           TOK_POPULATE,    NONRESTOKEN_),
   ParKeyWord("POSITION",           TOK_POSITION,    ANS_|RESWORD_|NONRESTOKEN_),

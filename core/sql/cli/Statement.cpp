@@ -2524,6 +2524,7 @@ RETCODE Statement::execute(CliGlobals * cliGlobals, Descriptor * input_desc,
 		bindTo(bindToStmt);
 	      }
 
+            // TODO(adamas): change here?
             // Two cases to consider for CALL statements
             // a) This is a CALL statement. We need to reset the state
             //    of all child result sets before doing this execute. 
@@ -3483,6 +3484,7 @@ RETCODE Statement::fetch(CliGlobals * cliGlobals, Descriptor * output_desc,
   if (output_desc && output_desc->rowwiseRowsetEnabled())
     {
       NABoolean eodSeen=FALSE;
+      // TODO(adamas): blocked here
       retcode = root_tcb->fetchMultiple(cliGlobals, statementGlobals_, 
 					output_desc,
 					diagsPtr, timeout, newOperation,

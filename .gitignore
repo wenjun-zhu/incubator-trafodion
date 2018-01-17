@@ -6,3 +6,6 @@ LICENSE
 /apache-*incubating/
 /RPMROOT/
 rat.out
+
+# ignore GNU global index files
+G*

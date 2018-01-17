@@ -194,6 +194,9 @@ public:
   inline void setPassThroughInputsParseTree(ElemDDLNode *pElemDDL);
   inline void setRoutineAttributesParseTree(ElemDDLNode *pElemDDL);
   inline void setOwner(ElemDDLNode * pAuthID);
+  inline void setSrc(const NAString *_src);
+  inline const NAString* getSrc() const;
+
 
   //
   // method for binding
@@ -390,6 +393,8 @@ protected:
 
   ElemDDLNode * children_[MAX_STMT_DDL_CREATE_ROUTINE_ARITY];
 
+  // procedure body, i.e. the source code
+  NAString*          src;
 }; // class StmtDDLCreateRoutine
 
 // -----------------------------------------------------------------------
@@ -713,6 +718,18 @@ inline void StmtDDLCreateRoutine::setOwner(ElemDDLNode * pAuthID)
   }
   else
     pOwner_ = NULL;
+}
+
+inline void StmtDDLCreateRoutine::setSrc(const NAString * _src) {
+    // TODO: output the src
+    // logError(__FILE__, __FUNCTION__, ...);
+
+    // set the procedure body, by making a copy
+    *src = *(new (PARSERHEAP()) NAString(*_src, PARSERHEAP()));
+}
+
+inline const NAString * StmtDDLCreateRoutine::getSrc() const {
+    return src;
 }
 
 #endif // STMTDDLCREATEROUTINE_H
