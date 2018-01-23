@@ -74,7 +74,7 @@ class UdrContextMsg;
 class SequenceValueGenerator;
 class LmRoutine;
 class ContextCli : public ExGod {
-  
+ 
 public:
   enum ArkcmpFailMode { arkcmpIS_OK_ = FALSE/*no failure*/,
 			arkcmpWARN_,
@@ -228,6 +228,8 @@ public:
   inline void yieldMemoryQuota(ULng32 size)
   { unusedBMOsMemoryQuota_ += size; }
 
+  int getHPLServerFD()
+     { return sockfd_;}
 private:
 
   // The heap where executor 'stuff' will be allocated from.
@@ -384,6 +386,9 @@ private:
   // and maintained by catman code.
   // Passed to CatManAnsiNameToGuardianName.
   void * catmanInfo_;
+
+  // TODO(adamas): connect to HPL server in ctor, and disconnect in detor
+  int sockfd_;
 
   enum Flags
   {

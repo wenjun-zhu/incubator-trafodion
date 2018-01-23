@@ -4521,10 +4521,10 @@ void CmpSeabaseDDL::handleDDLCreateAuthorizationError(
       default:
          SEABASEDDL_INTERNAL_ERROR("Switch statement in handleDDLCreateAuthorizationError");  
    } 
-      
-}
-    
 
+}
+
+// TODO(adamas): update table when creating routine
 short CmpSeabaseDDL::updateSeabaseMDObjectsTable(
                                          ExeCliInterface *cliInterface,
                                          const char * catName,

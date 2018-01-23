@@ -62,6 +62,22 @@
 #include "Statement.h"
 #include "ExRsInfo.h"
 #include "Descriptor.h"
+#include "Hplsql.pb.h"
+
+#include "Context.h"
+#include "Globals.h"
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netdb.h>
+
+#undef _MSC_VER
+#include <google/protobuf/message.h>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+#include "Hplsql.pb.h"
 
 #define TF_STRING(x) ((x) ? ("TRUE") : ("FALSE"))
 #define YN_STRING(x) ((x) ? ("YES") : ("NO"))
@@ -886,27 +902,62 @@ ExWorkProcRetcode ExUdrTcb::work()
 
   if (languageType_ == COM_LANGUAGE_PLSQL)
   {
-      // TODO(adamas): send the query to HPL server, and reutrn directly
-      insertUpQueueEntry(ex_queue::Q_NO_DATA);
-      
-      return result;
-      /*
-         s = new (getIpcHeap())
-         UdrClientControlStream(myIpcEnv(),
-         (callbackRequired ? this : NULL),
-         myExeStmtGlobals(),
-         FALSE,
-         isTransactional);
+          // TODO(adamas): send the CALL PROCEDURE to the HPL/SQL server
+          hplsql::Request request;
+          // get routine name from ExUdrTdb::routineName_
+          request.set_sql("call plus_one(1);");
 
-         NABoolean sendWaited = FALSE;
-         s->send(sendWaited, transIdToSend);
-     */
+          ContextCli* currContext = GetCliGlobals()->currContext();
+          int sockfd = currContext->getHPLServerFD();
+
+          uint32_t requestSize = request.ByteSize();
+          char *requestArray = new char [requestSize + sizeof(requestSize)];
+          google::protobuf::io::ArrayOutputStream aos(requestArray, requestSize + sizeof(requestSize));
+          google::protobuf::io::CodedOutputStream *coded_output = new google::protobuf::io::CodedOutputStream(&aos);
+          coded_output->WriteVarint32(request.ByteSize());
+          request.SerializeToCodedStream(coded_output);
+
+          int returnedRequestSize = write(sockfd, requestArray, requestSize + sizeof(requestSize));
+          if (returnedRequestSize < 0) {
+                  assert(0);
+                  //LOG_ERROR("ERROR writing to socket");
+          }
+          delete [] requestArray;
+
+          // read the response
+          char responseHeader[4];
+          int returnSize = read(sockfd, responseHeader, 4);
+          assert(returnSize == 4);
+          google::protobuf::uint32 responseBodySize;
+          google::protobuf::io::ArrayInputStream ais(responseHeader, 4);
+          google::protobuf::io::CodedInputStream coded_input(&ais);
+          coded_input.ReadVarint32(&responseBodySize);
+
+          char *responseArray = new char [responseBodySize];
+          int responseSize = read(sockfd, responseArray, responseBodySize);
+          if (responseSize < 0) {
+                  assert(0);
+                  // LOG_ERROR("ERROR reading from socket");
+          } else {
+                  hplsql::Response response;
+                  response.ParseFromArray(responseArray, responseSize);
+                  assert(response.sqlcode() == 0);
+          }
+          delete [] responseArray;
+
+          // LOG_ERROR, finish sending the creation procedure
+          close(sockfd);
+
+          // pretend as there is no data returned.
+          insertUpQueueEntry(ex_queue::Q_NO_DATA);
+
+          return result;
   }
 
   result = checkReceive();
   UdrDebug1("  [WORK] checkReceive() returned %s",
             GetWorkRetcodeString(result));
-  
+
   if (result == WORK_OK)
   {
     result = checkSend();

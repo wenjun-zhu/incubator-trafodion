@@ -98,6 +98,8 @@
 #include "ComDistribution.h"
 #include "LmRoutine.h"
 
+#include <arpa/inet.h>
+
 // Printf-style tracing macros for the debug build. The macros are
 // no-ops in the release build.
 #ifdef _DEBUG
@@ -282,8 +284,34 @@ ContextCli::ContextCli(CliGlobals *cliGlobals)
 
   seqGen_ = new(exCollHeap()) SequenceValueGenerator(exCollHeap());
 
-  hdfsHandleList_ = new(exCollHeap()) HashQueue(exCollHeap(), 50); // The hfsHandleList_ represents a list of distict hdfs Handles with unique hdfs port numbers and server names. Assume not more than 50 hdfsServers could be connected in the Trafodion setup.  These will get initialized the first time access is made to a particular hdfs server. This list gets cleaned up when the thread exits. 
-  
+  // The hfsHandleList_ represents a list of distict hdfs Handles
+  // with unique hdfs port numbers and server names. Assume not more
+  // than 50 hdfsServers could be connected in the Trafodion setup.
+  // These will get initialized the first time access is made to
+  // a particular hdfs server. This list gets cleaned up when the thread exits. 
+  hdfsHandleList_ = new(exCollHeap()) HashQueue(exCollHeap(), 50);
+
+  // TODO(adamas): connect to HPL server
+  string ip = "localhost";
+  int port = 3333;
+  struct sockaddr_in serv_addr;
+  struct hostent *server;
+
+  sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd_ < 0) {
+    assert(0);
+    // LOG_ERROR("ERROR opening socket");
+  }
+
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(port);
+  inet_pton(AF_INET, ip.data(), &serv_addr.sin_addr);
+
+  if (connect(sockfd_,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+    assert(0);
+    // LOG_ERROR("ERROR connecting");
+  }   
 }  
 
 
@@ -417,6 +445,14 @@ void ContextCli::deleteMe()
   disconnectHdfsConnections();
   delete hdfsHandleList_;
   hdfsHandleList_ = NULL;
+
+  // TODO(adamas): close connection to HPL Server
+  if (sockfd_ != 0)
+    {
+      // LOG_ERROR, finish sending the creation procedure
+      close(sockfd_);
+    }
+  
 }
 
 Lng32 ContextCli::initializeSessionDefaults()

@@ -303,6 +303,7 @@ public class TransactionalTable extends HTable implements TransactionalTableClie
           throw new IOException("ERROR while calling coprocessor ",t);
         } 
         if(result == null)
+          // TODO(adamas): fail to get the result from Hbase.
           throw new IOException(retryErrMsg);
         else if(result.hasException())
           throw new IOException(result.getException());

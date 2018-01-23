@@ -168,6 +168,7 @@ DLL_DIRS := $(DLLS)
 EXE_DIRS := $(EXECUTABLES) $(EXES_NO_EXPORT) 
 
 # These definitions are used for all targets when building for linux
+# TODO(adamas): why are _MSC_VER and so on defined for Linux?
 SYS_DEFS := -DNA_LINUX -DSQ_LINUX -DNGG -D_M_DG -D_NSKFS_ -D_FULL_BUILD \
 	-DARKFS_GENERATOR -D_DP2NT_ \
 	-D_LITTLE_ENDIAN_ -DARG_PRESENT_OMIT -DNSK_USE_MSGSYS_SHELLS \

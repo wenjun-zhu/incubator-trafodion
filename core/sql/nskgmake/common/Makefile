@@ -92,11 +92,17 @@ CPPSRC := \
 	unicode_char_set.cpp \
 	wstr.cpp \
 	BloomFilter.cpp \
-	VarInt.cpp 
+	VarInt.cpp
 
 CPPSRC += ComCextMisc.cpp
 
-SRCPATH := common porting_layer 
+# generated protobuf file, to communicate with HPL server.
+CPPSRC += Hplsql.pb.cpp
+
+SRCPATH := common porting_layer
 
 CPPSRC += PortProcessCalls.cpp vers_libcommon.cpp
 CPPSRC += SMConnection.cpp
+
+
+SYS_LIBS := -lprotobuf

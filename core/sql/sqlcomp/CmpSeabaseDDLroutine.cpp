@@ -38,6 +38,9 @@
 #define   SQLPARSERGLOBALS_FLAGS	// must precede all #include's
 #define   SQLPARSERGLOBALS_NADEFAULTS
 
+#include "Context.h"
+#include "Globals.h"
+     
 #include "ComObjectName.h"
 #include "ComUser.h"
 #include "CmpSeabaseDDLroutine.h"
@@ -72,10 +75,17 @@
 #include "LmJavaSignature.h"
 
 #include "ComCextdecs.h"
-#include <sys/stat.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 
+#undef _MSC_VER
+#include <google/protobuf/message.h>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+
+#include <sys/stat.h>
+
+#include "Hplsql.pb.h"
 
 // *****************************************************************************
 // *                                                                           *
@@ -791,7 +801,8 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       // do not check the path for PL/SQL, just store the code
       createSeabaseRoutine_PLSQL(cliInterface, createRoutineNode,
               currCatName, currSchName);
-  } else {
+      return;
+  }
   
   ComObjectName libName(createRoutineNode->
                         getLibraryName().getQualifiedNameAsAnsiString());
@@ -803,7 +814,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
   char externalPath[512] ;
 	
   // this call needs to change
-  Int64 libUID = getObjectUID(&cliInterface, 
+  libUID = getObjectUID(&cliInterface, 
                               libCatNamePart, 
                               libSchNamePart, 
                               libObjNamePart,
@@ -811,7 +822,7 @@ void CmpSeabaseDDL::createSeabaseRoutine(
 
   if (libUID < 0)
     {
-      processReturn();    
+      processReturn();
       return;
     }
 
@@ -825,7 +836,6 @@ void CmpSeabaseDDL::createSeabaseRoutine(
     }
 
   // read the library path name from the LIBRARIES metadata table
-
   char * buf = new(STMTHEAP) char[200];
   str_sprintf(buf, "select library_filename from %s.\"%s\".%s"
               " where library_uid = %ld for read uncommitted access",
@@ -1231,7 +1241,6 @@ void CmpSeabaseDDL::createSeabaseRoutine(
       processReturn();
       return;
     }
-  }
 
   NAString udrType;
   getRoutineTypeLit(createRoutineNode->getRoutineType(), udrType);
@@ -1329,43 +1338,49 @@ void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
     // LOG_ERROR();
 
     while (0) {
-        // send the text to the HPL/SQL server
-        createRoutineNode->getSrc();
+        // TODO(adamas): send the CREATE PROCEDURE to the HPL/SQL server.
+        hplsql::Request request;
+        // request.set_sql(createRoutineNode->getSrc()->data());
+        request.set_sql("CREATE PROCEDURE plus_one(para int) "
+                        "AS     BEGIN update t1 set a2 = a1 + 1;   END;");
 
-        // connect the HPL/SQL server, and send the CreateStmt
-        string ip = "localhost";
-        int port = 5678;
-        struct sockaddr_in serv_addr;
-        struct hostent *server;
+        ContextCli* currContext = GetCliGlobals()->currContext();
+        int sockfd = currContext->getHPLServerFD();
 
-        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd < 0) {
+        uint32_t requestSize = request.ByteSize();
+        char *requestArray = new char [requestSize + sizeof(requestSize)];
+        google::protobuf::io::ArrayOutputStream aos(requestArray, requestSize + sizeof(requestSize));
+        google::protobuf::io::CodedOutputStream *coded_output = new google::protobuf::io::CodedOutputStream(&aos);
+        coded_output->WriteVarint32(request.ByteSize());
+        request.SerializeToCodedStream(coded_output);
+
+        int returnedRequestSize = write(sockfd, requestArray, requestSize + sizeof(requestSize));
+        if (returnedRequestSize < 0) {
             assert(0);
-            // LOG_ERROR("ERROR opening socket");
+            // LOG_ERROR("ERROR writing to socket");
         }
+        delete [] requestArray;
 
-        server = gethostbyname(ip.c_str());
-        if (server == NULL) {
-            fprintf(stderr,"ERROR, no such host\n");
-            exit(0);
+        // read the response
+        char responseHeader[4];
+        int returnSize = read(sockfd, responseHeader, 4);
+        assert(returnSize == 4);
+        google::protobuf::uint32 responseBodySize;
+        google::protobuf::io::ArrayInputStream ais(responseHeader, 4);
+        google::protobuf::io::CodedInputStream coded_input(&ais);
+        coded_input.ReadVarint32(&responseBodySize);
+
+        char *responseArray = new char [responseBodySize];
+        int responseSize = read(sockfd, responseArray, responseBodySize);
+        if (responseSize < 0) {
+                assert(0);
+                // LOG_ERROR("ERROR reading from socket");
+        } else {
+                hplsql::Response response;
+                response.ParseFromArray(responseArray, responseSize);
+                assert(response.sqlcode() == 0);
         }
-
-        memset(&serv_addr, 0, sizeof(serv_addr));
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons(port);
-        inet_pton(AF_INET, ip.data(), &serv_addr.sin_addr);
-
-        if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-            assert(0);
-            // LOG_ERROR("ERROR connecting");
-        }
-
-        const char* buffer = createRoutineNode->getSrc()->data();
-        int n = write(sockfd, buffer, strlen(buffer));
-        if (n < 0) {
-            assert(0);
-            //LOG_ERROR("ERROR writing to socket");
-        }
+        delete [] responseArray;
 
         // LOG_ERROR, finish sending the creation procedure
         close(sockfd);
@@ -1525,8 +1540,6 @@ void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
             createRoutineNode->ddlXns(), FALSE);
 
     processReturn();
-
-    return;
 }
 
 
