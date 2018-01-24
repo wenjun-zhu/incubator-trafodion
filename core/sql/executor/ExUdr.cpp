@@ -945,9 +945,6 @@ ExWorkProcRetcode ExUdrTcb::work()
           }
           delete [] responseArray;
 
-          // LOG_ERROR, finish sending the creation procedure
-          close(sockfd);
-
           // pretend as there is no data returned.
           insertUpQueueEntry(ex_queue::Q_NO_DATA);
 

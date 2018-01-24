@@ -1337,7 +1337,7 @@ void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
     // TODO(adamas): output the related info
     // LOG_ERROR();
 
-    while (0) {
+    {
         // TODO(adamas): send the CREATE PROCEDURE to the HPL/SQL server.
         hplsql::Request request;
         // request.set_sql(createRoutineNode->getSrc()->data());
@@ -1381,9 +1381,6 @@ void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
                 assert(response.sqlcode() == 0);
         }
         delete [] responseArray;
-
-        // LOG_ERROR, finish sending the creation procedure
-        close(sockfd);
 
         return;
     };
