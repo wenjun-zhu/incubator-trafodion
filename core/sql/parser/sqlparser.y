@@ -2282,7 +2282,6 @@ static void enableMakeQuotedStringISO88591Mechanism()
 %type <pElemDDL>                routine_returns_clause
 %type <stringval>               optional_as_routine_body_clause
 %type <stringval>               as_routine_body_clause
-%type <stringval>               routine_body_clause
 %type <pElemDDL>                optional_passthrough_inputs_clause
 %type <pElemDDL>                passthrough_inputs_clause
 %type <pElemDDL>                optional_add_passthrough_inputs_clause
@@ -24008,8 +24007,8 @@ routine_definition : TOK_CREATE TOK_PROCEDURE optional_if_not_exists_clause ddl_
                                   pNode->setCreateIfNotExists($3);
                                   pNode->setOwner($7/*optional_by_auth_identifier*/);
 
-                                  NAString strippedSrc;  // delimiter $$ should be removed
-                                  $8->extract(2, $8->length()-2, strippedSrc);
+                                  NAString strippedSrc;    // delimiter $$(at both ends) should be removed
+                                  $8->extract(2, ($8->length()-1)-2, strippedSrc);
                                   pNode->setSrc(&strippedSrc);    // as_routine_body_clause
                                   //pNode->setSrc(src);    // as_routine_body_clause
 
@@ -24036,7 +24035,7 @@ routine_definition : TOK_CREATE TOK_PROCEDURE optional_if_not_exists_clause ddl_
           , COM_SCALAR_UDF_TYPE // ComRoutineType create_scalar_function_tokens
           , PARSERHEAP()
           );
-      pNode->setCreateIfNotExists($3); 
+      pNode->setCreateIfNotExists($3);
       pNode->synthesize();
       $$ = pNode;
       delete $4;  // ddl_qualified_name of routine

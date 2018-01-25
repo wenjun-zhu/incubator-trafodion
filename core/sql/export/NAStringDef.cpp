@@ -232,7 +232,7 @@ NAString::copy() const
 int
 NAString::extract(int begin, int end, NAString & target) const
 {
-  if(end >= length() || begin < 0 ||end < begin) 
+  if(end >= length() || begin < 0 ||end < begin)
       return -1;
 
   for(int i = begin; i <= end; i++)

@@ -1344,27 +1344,28 @@ void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
       plSrc.append(createRoutineNode->getRoutineNameAsQualifiedName().getObjectName());  // procedure name
       plSrc.append("() AS ");  // parameters, FIXME(adamas): add them later
       plSrc.append(createRoutineNode->getSrc()->data()); // procedure body
-      // plSrc.append();
-      
+      plSrc.append(";");  // a semicolon
+
       hplsql::Request request;
       request.set_sql(plSrc);
-                
-          
-        ContextCli* currContext = GetCliGlobals()->currContext();
-        int sockfd = currContext->getHPLServerFD();
 
         uint32_t requestSize = request.ByteSize();
-        char *requestArray = new char [requestSize + sizeof(requestSize)];
-        google::protobuf::io::ArrayOutputStream aos(requestArray, requestSize + sizeof(requestSize));
+        const int varintSizeAtMost = 5;  // the prefix header VARINT at most 5 bytes
+        char *requestArray = new char [requestSize + varintSizeAtMost];
+        google::protobuf::io::ArrayOutputStream aos(requestArray, requestSize + varintSizeAtMost);
         google::protobuf::io::CodedOutputStream *coded_output = new google::protobuf::io::CodedOutputStream(&aos);
-        coded_output->WriteVarint32(request.ByteSize());
+        coded_output->WriteVarint32(requestSize);  // NOTICE: the length of VARINT is variant, not always 4 bytes
         request.SerializeToCodedStream(coded_output);
 
-        int returnedRequestSize = write(sockfd, requestArray, requestSize + sizeof(requestSize));
+        // Get socket fd
+        int sockfd = GetCliGlobals()->currContext()->getHPLServerFD();
+
+        int returnedRequestSize = write(sockfd, requestArray, coded_output->ByteCount());
         if (returnedRequestSize < 0) {
             assert(0);
             // LOG_ERROR("ERROR writing to socket");
         }
+        delete coded_output;
         delete [] requestArray;
 
         // read the response
