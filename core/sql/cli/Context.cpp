@@ -290,28 +290,6 @@ ContextCli::ContextCli(CliGlobals *cliGlobals)
   // These will get initialized the first time access is made to
   // a particular hdfs server. This list gets cleaned up when the thread exits. 
   hdfsHandleList_ = new(exCollHeap()) HashQueue(exCollHeap(), 50);
-
-  // TODO(adamas): connect to HPL server
-  string ip = "localhost";
-  int port = 3333;
-  struct sockaddr_in serv_addr;
-  struct hostent *server;
-
-  sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd_ < 0) {
-    assert(0);
-    // LOG_ERROR("ERROR opening socket");
-  }
-
-  memset(&serv_addr, 0, sizeof(serv_addr));
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(port);
-  inet_pton(AF_INET, ip.data(), &serv_addr.sin_addr);
-
-  if (connect(sockfd_,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-    assert(0);
-    // LOG_ERROR("ERROR connecting");
-  }   
 }  
 
 
@@ -445,14 +423,6 @@ void ContextCli::deleteMe()
   disconnectHdfsConnections();
   delete hdfsHandleList_;
   hdfsHandleList_ = NULL;
-
-  // TODO(adamas): close connection to HPL Server
-  if (sockfd_ != 0)
-    {
-      // LOG_ERROR, finish sending the creation procedure
-      close(sockfd_);
-    }
-  
 }
 
 Lng32 ContextCli::initializeSessionDefaults()
@@ -2738,6 +2708,28 @@ void ContextCli::beginSession(char * userSpecifiedSessionName)
     getSessionDefaults()->beginSession();
 
   setInMemoryObjectDefn(FALSE);
+  
+  // TODO(adamas): connect to HPL server
+  string ip = "localhost";
+  int port = 3333;
+  struct sockaddr_in serv_addr;
+  struct hostent *server;
+
+  sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (sockfd_ < 0) {
+    assert(0);
+    // LOG_ERROR("ERROR opening socket");
+  }
+
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(port);
+  inet_pton(AF_INET, ip.data(), &serv_addr.sin_addr);
+
+  if (connect(sockfd_,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+    assert(0);
+    // LOG_ERROR("ERROR connecting");
+  }
 }
 
 void ContextCli::endMxcmpSession(NABoolean cleanupEsps, 
@@ -2921,6 +2913,13 @@ void ContextCli::endSession(NABoolean cleanupEsps,
   // Reset the stats area to ensure that the reference count in conext_->prevStmtStats_ is
   // decremented so that it can be freed up when GC happens in ssmp
   setStatsArea(NULL, FALSE, FALSE, TRUE);
+
+  // TODO(adamas): close connection to HPL Server
+  if (sockfd_ != 0)
+    {
+      // LOG_ERROR, finish sending the creation procedure
+      close(sockfd_);
+    }
 }
 
 void ContextCli::dropSession(NABoolean clearCmpCache)

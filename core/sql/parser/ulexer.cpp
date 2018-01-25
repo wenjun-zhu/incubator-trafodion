@@ -141,7 +141,7 @@ extern THREAD_P NABoolean turnUnknownCharSetToISO88591;
 
 #ifdef DEBUG
 //NGG For the time being  #define dbgprintf(x)	printf(x,yytext_)
-  #define dbgprintf(x)	
+  #define dbgprintf(x)
   #define DBGMSG(x)	x
 #else
   #define dbgprintf(x)
@@ -169,7 +169,7 @@ struct yy_buffer_state
 // Report a fatal error.
 #define YY_EXIT_FAILURE 2
 /* UR2-CNTNSK */
-#define YY_FATAL_ERROR(msg) \
+#define YY_FATAL_ERROR(msg)                                             \
   do { fprintf(stderr, "%s\n", msg); exit(YY_EXIT_FAILURE); } while(0)
 //#endif
 
@@ -286,7 +286,7 @@ inline static Int32 U_isAsciiAlpha(NAWchar c)
 inline static Int32 U_isAsciiAlNum(NAWchar c)
 {
   return (c >= L'A' && c <= L'Z') || (c >= L'a' && c <= L'z') ||
-         (c >= L'0' && c <= L'9');
+    (c >= L'0' && c <= L'9');
 }
 
 inline static Int32 U_isAsciiAlNumUnd(NAWchar c)
@@ -401,13 +401,13 @@ static NAString *removeConsecutiveQuotes(const NAWchar *s,
 
   lvalp->stringval_with_charset.resetflags_Bit(StringvalWithCharSet::eUSE_wstringval_FIELD_BIT_MASK); // i.e., use stringval field
   lvalp->stringval_with_charset.setflags_Bit ( StringvalWithCharSet::eSTR_LIT_PREFIX_SPEC_BIT_MASK
-                                             , literalPrefixCS != CharInfo::UnknownCharSet
-                                             );
+                                               , literalPrefixCS != CharInfo::UnknownCharSet
+                                               );
   lvalp->stringval_with_charset.setflags_Bit ( StringvalWithCharSet::eINFER_CS_UNKNOWN_CS_BIT_MASK
-                                             , ( isInferCharSetEnabled
-                                                 && literalPrefixCS == CharInfo::UnknownCharSet // the QUOTED_STRING case
-                                                 && turnUnknownCharSetToISO88591 == FALSE )
-                                             );
+                                               , ( isInferCharSetEnabled
+                                                   && literalPrefixCS == CharInfo::UnknownCharSet // the QUOTED_STRING case
+                                                   && turnUnknownCharSetToISO88591 == FALSE )
+                                               );
 
   //
   // If no input, we can just return (r) at this point.
@@ -418,86 +418,86 @@ static NAString *removeConsecutiveQuotes(const NAWchar *s,
   // again we just return (r).
   //
   if (!s || len <= 0 ||
-         ( (len == 1) && (literalPrefixCS == CharInfo::UnknownCharSet) )
-     )
-  {
-    CharInfo::CharSet cs = literalPrefixCS;
-    if (cs == CharInfo::UnknownCharSet)
-      cs = CharInfo::ISO88591; // an empty string can have any character set attribute
-    lvalp->stringval_with_charset.charSet_ = cs;
-    lvalp->stringval_with_charset.bytesPerChar_ = CharInfo::maxBytesPerChar(cs);
-    return r; // lvalp->stringval = lvalp->stringval_with_charset.stringval = r;
-  }
+      ( (len == 1) && (literalPrefixCS == CharInfo::UnknownCharSet) )
+      )
+    {
+      CharInfo::CharSet cs = literalPrefixCS;
+      if (cs == CharInfo::UnknownCharSet)
+        cs = CharInfo::ISO88591; // an empty string can have any character set attribute
+      lvalp->stringval_with_charset.charSet_ = cs;
+      lvalp->stringval_with_charset.bytesPerChar_ = CharInfo::maxBytesPerChar(cs);
+      return r; // lvalp->stringval = lvalp->stringval_with_charset.stringval = r;
+    }
 
   CharInfo::CharSet inputCS = (CharInfo::CharSet)SqlParser_CurrentParser->charset_;
   CharInfo::CharSet targetCS = inputCS;
 
 
   if (literalPrefixCS != CharInfo::UnknownCharSet) // the TOK_SBYTE_LITERAL case
-  {
-    targetCS = literalPrefixCS;
-    PARSERASSERT(targetCS == CharInfo::ISO88591 || targetCS == CharInfo::UTF8);
-    //
-    // Note that an _ISO88591'string-literal' may contain Western European characters
-    // (i.e., 0 <= code_points < 255).
-  }
-  else // literalPrefixCS == CharInfo::UnknownCharSet - i.e., the QUOTED_STRING case
-  {
-    PARSERASSERT(targetCS == CharInfo::UTF8);
-
-    // Check if the string is all ASCII characters (i.e., 0 <= code_points <= 127)
     {
-       NABoolean containsOnlyASCII = na_wcs_has_only_ascii_chars(s, len/*in_NAWchars*/);
-       //
-       // If all ASCII characters, then mark the quoted string as ISO88591
-       // instead of UTF8 as that will be (A) simpler for any translations or
-       // comparisons later and (B) more backward compatible (hence avoiding
-       // many potential regression test failures.)
-       //
-       if ( containsOnlyASCII == TRUE )
-          targetCS = CharInfo::ISO88591;
+      targetCS = literalPrefixCS;
+      PARSERASSERT(targetCS == CharInfo::ISO88591 || targetCS == CharInfo::UTF8);
+      //
+      // Note that an _ISO88591'string-literal' may contain Western European characters
+      // (i.e., 0 <= code_points < 255).
     }
-  } // string literal without character set prefix (i.e. QUOTED_STRING)
+  else // literalPrefixCS == CharInfo::UnknownCharSet - i.e., the QUOTED_STRING case
+    {
+      PARSERASSERT(targetCS == CharInfo::UTF8);
+
+      // Check if the string is all ASCII characters (i.e., 0 <= code_points <= 127)
+      {
+        NABoolean containsOnlyASCII = na_wcs_has_only_ascii_chars(s, len/*in_NAWchars*/);
+        //
+        // If all ASCII characters, then mark the quoted string as ISO88591
+        // instead of UTF8 as that will be (A) simpler for any translations or
+        // comparisons later and (B) more backward compatible (hence avoiding
+        // many potential regression test failures.)
+        //
+        if ( containsOnlyASCII == TRUE )
+          targetCS = CharInfo::ISO88591;
+      }
+    } // string literal without character set prefix (i.e. QUOTED_STRING)
 
   NAString* pTempStr =  NULL;
   pTempStr = unicodeToChar(const_cast<NAWchar*>(s), len,
                            static_cast<Lng32>(targetCS), PARSERHEAP());
   if ( pTempStr == NULL ) // conversion failed
-  {
-    // The string argument contains characters that cannot be converted.
-    *CmpCommon::diags() << DgSqlCode(-8413);
-    delete r;
-    return NULL; // lvalp->stringval = lvalp->stringval_with_charset.stringval = NULL;
-  }
-  else // conversion was successful
-  {
-    // --- Remove consecutive quotes ---
-
-    Int32 iConvStrLitLen = pTempStr->length();
-    unsigned char quoteChar = (unsigned char)quote; // ok to cast - quote is 0x0022 or 0x0027
-    unsigned char *pConvStrLit = (unsigned char *)pTempStr->data();
-    for (Int32 i = 0; i < iConvStrLitLen; i++)
     {
-      if (pConvStrLit[i] == quoteChar)
-      {
-        if (pConvStrLit[i+1] != quoteChar)
-          break; // pConvStrLit[i] contains the terminating delimiting quote
-        i++;
-      }
-      r->append(pConvStrLit[i]);
-    } // for
+      // The string argument contains characters that cannot be converted.
+      *CmpCommon::diags() << DgSqlCode(-8413);
+      delete r;
+      return NULL; // lvalp->stringval = lvalp->stringval_with_charset.stringval = NULL;
+    }
+  else // conversion was successful
+    {
+      // --- Remove consecutive quotes ---
 
-    if ( literalPrefixCS == CharInfo::UnknownCharSet ) // the QUOTED_STRING case
-      PARSERASSERT( targetCS == CharInfo::UTF8 || ( targetCS == CharInfo::ISO88591 &&
-                                                    NAStringHasOnly7BitAsciiChars(*pTempStr)));
-    delete pTempStr;
-    pTempStr = NULL;
+      Int32 iConvStrLitLen = pTempStr->length();
+      unsigned char quoteChar = (unsigned char)quote; // ok to cast - quote is 0x0022 or 0x0027
+      unsigned char *pConvStrLit = (unsigned char *)pTempStr->data();
+      for (Int32 i = 0; i < iConvStrLitLen; i++)
+        {
+          if (pConvStrLit[i] == quoteChar)
+            {
+              if (pConvStrLit[i+1] != quoteChar)
+                break; // pConvStrLit[i] contains the terminating delimiting quote
+              i++;
+            }
+          r->append(pConvStrLit[i]);
+        } // for
 
-    lvalp->stringval_with_charset.charSet_ = targetCS;
-    lvalp->stringval_with_charset./*max*/bytesPerChar_ = CharInfo::maxBytesPerChar(targetCS);
+      if ( literalPrefixCS == CharInfo::UnknownCharSet ) // the QUOTED_STRING case
+        PARSERASSERT( targetCS == CharInfo::UTF8 || ( targetCS == CharInfo::ISO88591 &&
+                                                      NAStringHasOnly7BitAsciiChars(*pTempStr)));
+      delete pTempStr;
+      pTempStr = NULL;
 
-    return r; // lvalp->stringval = lvalp->stringval_with_charset.stringval = r;
-  } //  pTempStr != NULL
+      lvalp->stringval_with_charset.charSet_ = targetCS;
+      lvalp->stringval_with_charset./*max*/bytesPerChar_ = CharInfo::maxBytesPerChar(targetCS);
+
+      return r; // lvalp->stringval = lvalp->stringval_with_charset.stringval = r;
+    } //  pTempStr != NULL
 
   delete r;
   return NULL; // lvalp->stringval = lvalp->stringval_with_charset.stringval = NULL;
@@ -572,17 +572,17 @@ Int32 yyULexer::setStringval(Int32 tokCod, const char *dbgstr, YYSTYPE *lvalp)
       (tokCod == DELIMITED_IDENTIFIER || tokCod == IDENTIFIER)
       && targetMBCS != CharInfo::ISO88591
       )
-  {
-    NAString* tempstr = lvalp->stringval; // targetMBCS == ParScannedInputCharset
-    if (tempstr == NULL)
-      return invalidStrLitNonTranslatableChars(lvalp);
-    Int32 TSLen = (Int32)tempstr->length();
-    Int32 YYLen = (Int32)YYLeng();
-    if(TSLen != YYLen){  // need offset of ORIGINAL string
-      ParScannedTokens->updateInputLen(TSLen);
-      ParScannedTokenOffset = ParScannedTokenOffset + TSLen - YYLen;
+    {
+      NAString* tempstr = lvalp->stringval; // targetMBCS == ParScannedInputCharset
+      if (tempstr == NULL)
+        return invalidStrLitNonTranslatableChars(lvalp);
+      Int32 TSLen = (Int32)tempstr->length();
+      Int32 YYLen = (Int32)YYLeng();
+      if(TSLen != YYLen){  // need offset of ORIGINAL string
+        ParScannedTokens->updateInputLen(TSLen);
+        ParScannedTokenOffset = ParScannedTokenOffset + TSLen - YYLen;
+      }
     }
-  }
   return tokCod;
 }
 
@@ -597,22 +597,22 @@ Int32 yyULexer::setTokval(Int32 tokCod, const char *dbgstr, YYSTYPE *lvalp)
 }
 
 Int32 yyULexer::aStringLiteralWithCharSet(CharInfo::CharSet cs,
-					const NAWchar *str, 
-                                        Int32 len,
-                                        NAWchar quote,
-                                        YYSTYPE *lvalp)
+                                          const NAWchar *str, 
+                                          Int32 len,
+                                          NAWchar quote,
+                                          YYSTYPE *lvalp)
 {
   addTokenToGlobalQueue();
   dbgprintf(DBGMSG("String literal %s\n"));
   if ( len != 0 &&
        ParScannedInputCharset != CharInfo::ISO88591 &&
        str[0] != 255 ) { // do not check if processing the mask
-      NAString* tempstr = unicodeToChar
-        (str, len, ParScannedInputCharset,PARSERHEAP());
-      if (tempstr == NULL)
-        return invalidStrLitNonTranslatableChars(lvalp);
-      ParScannedTokenOffset += ((Int32)tempstr->length() - len);
-      ParScannedTokens->updateInputLen((Int32)tempstr->length());
+    NAString* tempstr = unicodeToChar
+      (str, len, ParScannedInputCharset,PARSERHEAP());
+    if (tempstr == NULL)
+      return invalidStrLitNonTranslatableChars(lvalp);
+    ParScannedTokenOffset += ((Int32)tempstr->length() - len);
+    ParScannedTokens->updateInputLen((Int32)tempstr->length());
   }
 
   // a "mini-cache" to avoid proc call, for perf
@@ -626,8 +626,8 @@ Int32 yyULexer::aStringLiteralWithCharSet(CharInfo::CharSet cs,
   lvalp->stringval_with_charset.charSet_ = cs;
   lvalp->stringval_with_charset.bytesPerChar_ = cachedBPC;
   lvalp->stringval_with_charset.setflags_Bit ( StringvalWithCharSet::eSTR_LIT_PREFIX_SPEC_BIT_MASK
-                                             , cs != CharInfo::UnknownCharSet
-                                             );
+                                               , cs != CharInfo::UnknownCharSet
+                                               );
 
   // What we are really asking is whether the cs is multi-single-byte
   // or multi-double-byte.
@@ -648,10 +648,10 @@ Int32 yyULexer::aStringLiteralWithCharSet(CharInfo::CharSet cs,
 }
 
 Int32 yyULexer::aHexStringLiteralWithCharSet(CharInfo::CharSet cs,
-					const NAWchar *str, 
-                                        Int32 len,
-                                        NAWchar quote,
-                                        YYSTYPE *lvalp)
+                                             const NAWchar *str, 
+                                             Int32 len,
+                                             NAWchar quote,
+                                             YYSTYPE *lvalp)
 {
   addTokenToGlobalQueue();
   dbgprintf(DBGMSG("String literal %s\n"));
@@ -669,57 +669,57 @@ Int32 yyULexer::aHexStringLiteralWithCharSet(CharInfo::CharSet cs,
   lvalp->stringval_with_charset.charSet_ = cs;
   lvalp->stringval_with_charset.bytesPerChar_ = cachedBPC;
   lvalp->stringval_with_charset.setflags_Bit ( StringvalWithCharSet::eSTR_LIT_PREFIX_SPEC_BIT_MASK
-                                             , cs != CharInfo::UnknownCharSet
-                                             );
+                                               , cs != CharInfo::UnknownCharSet
+                                               );
   lvalp->stringval_with_charset.setflags_Bit(StringvalWithCharSet::eHEX_STRING_LITERAL_BIT_MASK);
 
   void* result = NULL;
                          
   enum hex_conversion_code code = 
-     verifyAndConvertHex(str, len, quote, cs, PARSERHEAP(), result);
+    verifyAndConvertHex(str, len, quote, cs, PARSERHEAP(), result);
 
   switch ( code ) {
 
-     case SINGLE_BYTE:
-     {
-        NAString* s = (NAString*)result;
-        if (s) {
-          lvalp->stringval = s;
-          PARSERASSERT(lvalp->stringval_with_charset.isstringvalUsed());
-          return TOK_SBYTE_LITERAL;
-        }
-     }
-     break;
+  case SINGLE_BYTE:
+    {
+      NAString* s = (NAString*)result;
+      if (s) {
+        lvalp->stringval = s;
+        PARSERASSERT(lvalp->stringval_with_charset.isstringvalUsed());
+        return TOK_SBYTE_LITERAL;
+      }
+    }
+    break;
                            
-     case DOUBLE_BYTE:
-     {
-        NAWString* ws = (NAWString*)result;
-        if (ws) {
-          lvalp->wstringval = ws;
-          lvalp->stringval_with_charset.setflags_Bit(StringvalWithCharSet::eUSE_wstringval_FIELD_BIT_MASK);
-          return TOK_MBYTE_LITERAL;
-        }
+  case DOUBLE_BYTE:
+    {
+      NAWString* ws = (NAWString*)result;
+      if (ws) {
+        lvalp->wstringval = ws;
+        lvalp->stringval_with_charset.setflags_Bit(StringvalWithCharSet::eUSE_wstringval_FIELD_BIT_MASK);
+        return TOK_MBYTE_LITERAL;
+      }
                            
-     }
-     break;
+    }
+    break;
 
-     case NOT_SUPPORTED:
-        // Error 3401
-        // Hexadecimal representation of string literals associated
-        // with the specified character set not yet supported.
-         *SqlParser_Diags << DgSqlCode(-3401) <<
-                             DgString0(CharInfo::getCharSetName(cs));
-         return invalidHexStrLit(lvalp);
-         break;
+  case NOT_SUPPORTED:
+    // Error 3401
+    // Hexadecimal representation of string literals associated
+    // with the specified character set not yet supported.
+    *SqlParser_Diags << DgSqlCode(-3401) <<
+      DgString0(CharInfo::getCharSetName(cs));
+    return invalidHexStrLit(lvalp);
+    break;
 
-     case INVALID_CODEPOINTS:
-        // 3400: invalid code points
-       *SqlParser_Diags << DgSqlCode(-3400) << DgString0(CharInfo::getCharSetName(cs));
-       break;
+  case INVALID_CODEPOINTS:
+    // 3400: invalid code points
+    *SqlParser_Diags << DgSqlCode(-3400) << DgString0(CharInfo::getCharSetName(cs));
+    break;
 
   case INVALID:
     // 3402: invalid hex format
-   	*SqlParser_Diags << DgSqlCode(-3402) 
+    *SqlParser_Diags << DgSqlCode(-3402) 
                      << DgString0(CharInfo::getCharSetName(cs));
     break;
 
@@ -803,9 +803,9 @@ Int32 yyULexer::aHexStringLiteralWithCharSet(CharInfo::CharSet cs,
 // prefixed with a character set name
 //
 inline Int32 yyULexer::constructStringLiteralWithCharSet(NABoolean isHex, 
-                                                       CharInfo::CharSet cs,
-                                                       YYSTYPE *lvalp,
-                                                       NAWchar quote)
+                                                         CharInfo::CharSet cs,
+                                                         YYSTYPE *lvalp,
+                                                         NAWchar quote)
 {
   NAWchar cc;
 
@@ -929,12 +929,12 @@ inline Int32 yyULexer::invalidHostVarNonTranslatableChars(YYSTYPE *lvalp)
 
 // This is here just because it's such a common idiom
 Int32 yyULexer::eitherCompoundOrSimpleKeyword(
-                                            NABoolean isCompound,
-                                            Int32 tokcodCompound,
-                                            Int32 tokcodSimple,
-                                            NAWchar *end1,
-                                            NAWchar holdChar1,
-                                            YYSTYPE *lvalp)
+                                              NABoolean isCompound,
+                                              Int32 tokcodCompound,
+                                              Int32 tokcodSimple,
+                                              NAWchar *end1,
+                                              NAWchar holdChar1,
+                                              YYSTYPE *lvalp)
 {
   if (isCompound)
     {
@@ -1010,12 +1010,12 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
       startRun();
 
       /*      cc=peekChar();
-      advance();
-      while (((cc=peekAdvance()) != WEOF) &&
-	     (cc != ';'))
-	{
-	}
-	*/
+              advance();
+              while (((cc=peekAdvance()) != WEOF) &&
+              (cc != ';'))
+              {
+              }
+      */
       cc = peekChar();
       while ((cc != WEOF) &&
 	     (cc != ';'))
@@ -1177,8 +1177,8 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
 		    }                   
 		    lvalp->stringval = removeConsecutiveQuotes
 		      ( YYText()+1, YYLeng()-1, WIDE_('\''), lvalp
-		      , CharInfo::UnknownCharSet // string literal without character set prefix
-		      );
+                        , CharInfo::UnknownCharSet // string literal without character set prefix
+                        );
 		    return (lvalp->stringval) ? QUOTED_STRING : invalidStrLitNonTranslatableChars(lvalp);
 		  }
             }
@@ -1598,10 +1598,10 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
                               : ((keyWordEntry2->getTokenCode() == TOK_BETWEEN)
                                  ? TOK_NOT_BETWEEN
                                  : ((keyWordEntry2->getTokenCode() == TOK_DROPPABLE)
-                                   ? TOK_NOT_DROPPABLE
-				     : ((keyWordEntry2->getTokenCode() == TOK_CASESPECIFIC)
-					? TOK_NOT_CASESPECIFIC
-					  : TOK_NOT_ENFORCED)))),
+                                    ? TOK_NOT_DROPPABLE
+                                    : ((keyWordEntry2->getTokenCode() == TOK_CASESPECIFIC)
+                                       ? TOK_NOT_CASESPECIFIC
+                                       : TOK_NOT_ENFORCED)))),
                              keyWordEntry1->getTokenCode(),
                              end1, holdChar1, lvalp);
                           break;
@@ -1672,8 +1672,8 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
 		}
 	    }
           else if (keyWordEntry1->getTokenCode() == TOK_PERFORM &&
-              SqlParser_WheneverClause &&
-              U_isAsciiAlNumUnd(cc))
+                   SqlParser_WheneverClause &&
+                   U_isAsciiAlNumUnd(cc))
             {
               // scan CASED_IDENTIFIER
               do { advance(); } while (U_isAsciiAlNumUndHyphen(peekChar()));
@@ -1974,7 +1974,7 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
                   return anIdentifier(lvalp);
                 }
             }
-           else if (keyWordEntry1->getTokenCode() == TOK_PARTITION)
+          else if (keyWordEntry1->getTokenCode() == TOK_PARTITION)
             {
               // scan 2nd part
               beginRun2 = mark();
@@ -1996,7 +1996,7 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
                 {
                   // suffix is not part of a compound token.
                   // return 1st part as a keyword.
-                   retractToMark(end1);
+                  retractToMark(end1);
                   return anSQLMXKeyword(keyWordEntry1->getTokenCode(), lvalp);
                 }
             }
@@ -2022,12 +2022,12 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
                 else
                   {
                     doBeforeAction();
-                      // In Trafodion text, double quoted strings are
-                      // delimited identifiers.
-                      //
-                      return setStringval(DELIMITED_IDENTIFIER, 
-                                          DBGMSG("Delimited identifier %s\n"),
-                                          lvalp);
+                    // In Trafodion text, double quoted strings are
+                    // delimited identifiers.
+                    //
+                    return setStringval(DELIMITED_IDENTIFIER, 
+                                        DBGMSG("Delimited identifier %s\n"),
+                                        lvalp);
                   }
             }
           return prematureEOF(lvalp);
@@ -2341,65 +2341,65 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
                   doBeforeAction();
                   // NSK system name only; e.g., \FIGARO
                   Int32 c = setStringval(BACKSLASH_SYSTEM_NAME,
-                                       DBGMSG("BACKSLASH_SYSTEM_NAME name %s\n"),
+                                         DBGMSG("BACKSLASH_SYSTEM_NAME name %s\n"),
                                          lvalp);
                   lvalp->stringval->toUpper();
                   return c;
                 }
               else
                 if (peekAdvance() == L'.' )
-                {
-                  if (peekChar() == L'$')
                   {
-                    advance();
-                    if (U_isAsciiAlpha(peekAdvance()))
-                    {
-                      // NSK system volume specified by \\{G}\.\${G}
-                      // where G is [a-zA-Z][a-zA-Z0-9]*
-                      //                  do { advance(); } while (U_isAsciiAlNum(peekChar()));
-                      while (U_isAsciiAlNumUnd(peekChar()))
-                        {
-                          advance();
-                        }
-  		   
-                      doBeforeAction();
-                      Int32 c = setStringval(SYSTEM_VOLUME_NAME,
-                                          DBGMSG("NSK sys-vol name %s\n"),
-                                             lvalp);
-                      lvalp->stringval->toUpper();
-                      return c;
-                    }
-                    else
-                    {
-                      // invalid NSK name
-                      doBeforeAction();
-                      return setTokval(NON_SQLTEXT_CHARACTER,
-                                      DBGMSG("Invalid NSK sys-vol name <%s>\n"), lvalp);
-                    }
-                  }
-                  else
-                  if (U_isdigit(peekAdvance()))
-                  {
-                    while (U_isdigit(peekChar()))
+                    if (peekChar() == L'$')
                       {
                         advance();
+                        if (U_isAsciiAlpha(peekAdvance()))
+                          {
+                            // NSK system volume specified by \\{G}\.\${G}
+                            // where G is [a-zA-Z][a-zA-Z0-9]*
+                            //                  do { advance(); } while (U_isAsciiAlNum(peekChar()));
+                            while (U_isAsciiAlNumUnd(peekChar()))
+                              {
+                                advance();
+                              }
+  		   
+                            doBeforeAction();
+                            Int32 c = setStringval(SYSTEM_VOLUME_NAME,
+                                                   DBGMSG("NSK sys-vol name %s\n"),
+                                                   lvalp);
+                            lvalp->stringval->toUpper();
+                            return c;
+                          }
+                        else
+                          {
+                            // invalid NSK name
+                            doBeforeAction();
+                            return setTokval(NON_SQLTEXT_CHARACTER,
+                                             DBGMSG("Invalid NSK sys-vol name <%s>\n"), lvalp);
+                          }
                       }
+                    else
+                      if (U_isdigit(peekAdvance()))
+                        {
+                          while (U_isdigit(peekChar()))
+                            {
+                              advance();
+                            }
   		  
-                    doBeforeAction();
-                    Int32 c = setStringval(SYSTEM_CPU_IDENTIFIER,
-                                        DBGMSG("SYSTEM CPU Idenitfier %s\n"),
-                                             lvalp);
-                    lvalp->stringval->toUpper();
-                    return c;
+                          doBeforeAction();
+                          Int32 c = setStringval(SYSTEM_CPU_IDENTIFIER,
+                                                 DBGMSG("SYSTEM CPU Idenitfier %s\n"),
+                                                 lvalp);
+                          lvalp->stringval->toUpper();
+                          return c;
+                        }
+                      else
+                        {
+                          // invalid NSK name
+                          doBeforeAction();
+                          return setTokval(NON_SQLTEXT_CHARACTER,
+                                           DBGMSG("Invalid SYSTEM CPU Idenitfier <%s>\n"), lvalp);
+                        }
                   }
-                  else
-                  {
-                    // invalid NSK name
-                    doBeforeAction();
-                    return setTokval(NON_SQLTEXT_CHARACTER,
-                                    DBGMSG("Invalid SYSTEM CPU Idenitfier <%s>\n"), lvalp);
-                  }
-                }
                 else
                   {
                     // invalid NSK name
@@ -2434,10 +2434,27 @@ Int32 yyULexer::yylex(YYSTYPE *lvalp)
               // note, returned 'identifier' includes leading dollar sign
               // parser code for ENV variables strips it off.
               Int32 c = setStringval(DOLLAR_IDENTIFIER,
-                                   DBGMSG("DOLLAR IDENTIFIER name %s\n"),
+                                     DBGMSG("DOLLAR IDENTIFIER name %s\n"),
                                      lvalp);
               lvalp->stringval->toUpper();
               return c;
+            }
+          else if ((cc=peekChar()) == L'$')
+            {
+              // TODO(adamas): Double dollar quoting
+              advance();
+              while ((cc=peekAdvance()) != WEOF)
+                {
+                  if (cc == L'$' && peekChar() == L'$')
+                    {
+                      advance();
+                      doBeforeAction();
+                      return setStringval(QUOTED_BLOCK,
+                                          DBGMSG("Delimited identifier %s\n"),
+                                          lvalp);
+                    }
+                }
+              return prematureEOF(lvalp);
             }
           else
             {

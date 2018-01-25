@@ -1339,11 +1339,17 @@ void CmpSeabaseDDL::createSeabaseRoutine_PLSQL(ExeCliInterface cliInterface,
 
     {
         // TODO(adamas): send the CREATE PROCEDURE to the HPL/SQL server.
-        hplsql::Request request;
-        // request.set_sql(createRoutineNode->getSrc()->data());
-        request.set_sql("CREATE PROCEDURE plus_one(para int) "
-                        "AS     BEGIN update t1 set a2 = a1 + 1;   END;");
-
+      NAString plSrc;
+      plSrc.append("CREATE PROCEDURE ");  // header
+      plSrc.append(createRoutineNode->getRoutineNameAsQualifiedName().getObjectName());  // procedure name
+      plSrc.append("() AS ");  // parameters, FIXME(adamas): add them later
+      plSrc.append(createRoutineNode->getSrc()->data()); // procedure body
+      // plSrc.append();
+      
+      hplsql::Request request;
+      request.set_sql(plSrc);
+                
+          
         ContextCli* currContext = GetCliGlobals()->currContext();
         int sockfd = currContext->getHPLServerFD();
 

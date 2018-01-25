@@ -357,6 +357,7 @@ static void enableMakeQuotedStringISO88591Mechanism()
 %token <stringval>  TOK_SBYTE_LITERAL		/* Single-byte string */
 %token <wstringval> TOK_MBYTE_LITERAL		/* Multi-byte (NCHAR) string */
 %token <stringval> SYSTEM_CPU_IDENTIFIER
+%token <stringval> QUOTED_BLOCK
 %token <stringval> routine_body
 %token <tokval> '('
 %token <tokval> ')'
@@ -23990,7 +23991,7 @@ routine_definition : TOK_CREATE TOK_PROCEDURE optional_if_not_exists_clause ddl_
                         routine_params_list_clause
                         optional_create_routine_attribute_list
                         optional_by_auth_identifier
-                        //optional_as_routine_body_clause
+                        optional_as_routine_body_clause
                                 {
                                   QualifiedName noActionQualName(PARSERHEAP());
                                   StmtDDLCreateRoutine *pNode =
@@ -24007,14 +24008,15 @@ routine_definition : TOK_CREATE TOK_PROCEDURE optional_if_not_exists_clause ddl_
                                   pNode->setCreateIfNotExists($3);
                                   pNode->setOwner($7/*optional_by_auth_identifier*/);
 
-                                  NAString *src = new (PARSERHEAP()) NAString("", PARSERHEAP());
-                                  // pNode->setSrc($8);    // as_routine_body_clause
-                                  pNode->setSrc(src);    // as_routine_body_clause
+                                  NAString strippedSrc;  // delimiter $$ should be removed
+                                  $8->extract(2, $8->length()-2, strippedSrc);
+                                  pNode->setSrc(&strippedSrc);    // as_routine_body_clause
+                                  //pNode->setSrc(src);    // as_routine_body_clause
 
                                   pNode->synthesize();
                                   $$ = pNode;
                                   delete $4;  // ddl_qualified_name of routine
-                                  // delete $8;  // optional_as_routine_body_clause of routine
+                                  delete $8;  // TODO(adamas): optional_as_routine_body_clause of procedure
                                 }
   | TOK_CREATE create_scalar_function_tokens optional_if_not_exists_clause ddl_qualified_name
     routine_params_list_clause
@@ -24324,21 +24326,12 @@ optional_as_routine_body_clause : empty
                                         $$ = $1;
                                 }
 /* type NAString */
-as_routine_body_clause: TOK_AS routine_body_clause
+/* TODO(adamas): text between $$..$$ is the body of the procedure */
+as_routine_body_clause: TOK_AS QUOTED_BLOCK
                                 {
-                                        $$ = $2;
+                                  // $$ = new (PARSERHEAP()) NAString($2, strlen($2), PARSERHEAP);
+                                  $$ = new (PARSERHEAP()) NAString(*$2);
                                 }
-
-/* TODO(adamas):
-        BEGIN...END
-   is not enough, use
-        $$...BEGIN...END...$$
-   instead later. */
-routine_body_clause: TOK_BEGIN routine_body TOK_END
-                {
-                        // $$ = new (PARSERHEAP()) NAString($2, strlen($2), PARSERHEAP);
-                        $$ = new (PARSERHEAP()) NAString(*$2);
-                }
 
 
 /* type pElemDDL */
