@@ -35,8 +35,6 @@ my $ProcessType_SSMP      = 11;
 
 my $gDebug = 0;
 
-my $bVirtualNodes=0;
-
 $gRoleEnumStorage     = "storage";
 $gRoleEnumEdge        = "connection";
 $gRoleEnumAggregation = "aggregation";
@@ -111,10 +109,10 @@ sub printInitialLines {
         return;
     }
 
-    printScript(1, "#!/bin/sh \n");
+    printScript(1, "#!/bin/bash \n");
     printTime;
 
-#    $smenv = "$ENV{'SQETC_DIR'}/seamonster.env";
+#    $smenv = "$ENV{'TRAF_VAR'}/seamonster.env";
 #    if ( -e $smenv ) {
 #      print "\nThe SeaMonster environment variable file $smenv exists.\n";
 #      print "The file will not be re-generated.\n\n";
@@ -123,9 +121,6 @@ sub printInitialLines {
 #      #Create SeaMonster environment variable file
 #      open (ETC,">>$smenv")
 #          or die("unable to open $smenv");
-#      if ($bVirtualNodes == 1) {
-#          print ETC "SM_VIRTUALNODE=1\n";
-#      }
 #      if (!$ENV{'SHARED_HARDWARE'} || $ENV{SHARED_HARDWARE} eq 'YES') {
 #          print ETC "SM_PIPEDEPTH=6\n";
 #          print ETC "SM_LOWATER=3\n";
@@ -135,7 +130,7 @@ sub printInitialLines {
 #      close(ETC);
 #    }
 
-    $msenv = "$ENV{'SQETC_DIR'}/ms.env";
+    $msenv = "$ENV{'TRAF_VAR'}/ms.env";
 
     open (ETC,">>$msenv")
         or die("unable to open $msenv");
@@ -147,20 +142,7 @@ sub printInitialLines {
         print ETC "SQ_TRANS_SOCK=0\n";
     }
 
-    if ($bVirtualNodes == 1) {
-        $virtualnode_string = "SQ_VIRTUAL_NODES=$gdNumNodes\n";
-        $virtualnid_string = "SQ_VIRTUAL_NID=0\n";
-        printScript(1, "export $virtualnode_string");
-        printScript(1, "export $virtualnid_string");
-
-        print ETC "$virtualnode_string";
-        print ETC "$virtualnid_string";
-           # Allow specific mirroring ON override for virtual node
-        print ETC "MS_STREAMS_MIN=20000\n";
-        print ETC "MS_STREAMS_MAX=20000\n";
-    }
     # Cluster
-    else {
         print ETC "MS_STREAMS_MIN=20000\n";
         print ETC "MS_STREAMS_MAX=20000\n";
         $hugePages=`cat /proc/sys/vm/nr_hugepages`;
@@ -174,7 +156,6 @@ sub printInitialLines {
         else {
             print ETC "SQ_RMS_ENABLE_HUGEPAGES=0\n";
         }
-    }
 
     print ETC "CLASSPATH=$ENV{'CLASSPATH'}:\n";
     close (ETC);
@@ -204,14 +185,19 @@ sub printInitialLines {
 
 #    genSQShellStart();
 
-#    if ($bVirtualNodes == 0) {
 #        printScript(1, "\nset CLUSTERNAME=\$CLUSTERNAME\n");
-#    }
 #    printScript(1, "\nset SQ_MBTYPE=$ENV{'SQ_MBTYPE'}\n");
-#    printScript(1, "\nset MY_NODES=\$MY_NODES\n");
+#    printScript(1, "\nset JAVA_HOME=\$JAVA_HOME\n");
+#    printScript(1, "\nset TRAF_CLUSTER_ID=\$TRAF_CLUSTER_ID\n");
+#    printScript(1, "\nset TRAF_INSTANCE_ID=\$TRAF_INSTANCE_ID\n");
+#    printScript(1, "\nset TRAF_FOUNDATION_READY=0\n");
 
 #    sqconfigdb::addDbClusterData( "SQ_MBTYPE", $ENV{'SQ_MBTYPE'});
 #    sqconfigdb::addDbClusterData( "TRAF_HOME", "$TRAF_HOME"); # comes out null
+#    sqconfigdb::addDbClusterData( "JAVA_HOME", "$JAVA_HOME"); 
+#    sqconfigdb::addDbClusterData( "TRAF_CLUSTER_ID", "$TRAF_CLUSTER_ID");
+#    sqconfigdb::addDbClusterData( "TRAF_INSTANCE_ID", "$TRAF_INSTANCE_ID");
+#    sqconfigdb::addDbClusterData( "TRAF_FOUNDATION_READY", "0"); 
 
 #    genSQShellExit();
 
@@ -223,7 +209,7 @@ sub printOverflowLines {
         return;
     }
 
-    $msenv = "$ENV{'SQETC_DIR'}/ms.env";
+    $msenv = "$ENV{'TRAF_VAR'}/ms.env";
 
     open (ETC,">>$msenv")
         or die("unable to open $msenv");
@@ -312,32 +298,13 @@ sub processNodes {
     while (<>) {
         next if (/^$/);
         next if (/^#/);
-        if (/^_virtualnodes/) {
-            @words=split(' ',$_);
-            $gdNumNodes=@words[1];
-            $bVirtualNodes=1;
-            my $l_dNodeIndex = 0;
-
-            print "Generating virtual configuration database, node-name=$g_HostName, virtual nodes count=$gdNumNodes\n";
-
-            sqnodes::genVirtualConfigDb( $g_HostName, $gdNumNodes );
-            for ($l_dNodeIndex = 0; $l_dNodeIndex < $gdNumNodes; $l_dNodeIndex++) {
-
-                $gNodeIdToZoneIdIndex[$l_dNodeIndex] = $l_dNodeIndex;
-
-                push(@g_EdgeNodes, $l_dNodeIndex);
-            }
-        }
-        elsif (/^end node/) {
+        if (/^end node/) {
 
             # Just for the time being - this should be an error
-            if (($bNodeSpecified == 0) &&
-                ($bVirtualNodes == 0)) {
+            if ($bNodeSpecified == 0) {
                 $gdNumNodes = 1;
             }
 
-            if ($bVirtualNodes == 0)
-            {
                 if (sqnodes::validateConfig() == 0)
                 {   # Valid configuration, generate sqconfig.db
                     $gdNumNodes = sqnodes::numNodes();
@@ -355,7 +322,6 @@ sub processNodes {
                 for ($i=0; $i < $gdNumNodes; $i++) {
                     push(@g_BackupTSENode, $i);
                 }
-            }
 
             return;
         }
@@ -519,7 +485,7 @@ sub printInitLinesAuxFiles {
 
     my $file_ptr  = @_[0];
 
-    print $file_ptr "#!/bin/sh\n";
+    print $file_ptr "#!/bin/bash\n";
     print $file_ptr "# Trafodion config/utility file generated @ ", getTime(), "\n";
 }
 
@@ -557,20 +523,6 @@ sub openFiles {
 
 sub endGame {
 
-    if ($bVirtualNodes == 1) {
-        open (SQSH,">$sqshell")
-            or die("unable to open $sqshell");
-        printInitLinesAuxFiles (SQSH);
-
-        print SQSH "export SQ_VIRTUAL_NODES=$gdNumNodes\n";
-        print SQSH "export SQ_VIRTUAL_NID=0\n";
-
-        close(SQSH);
-
-        print "\nGenerated SQ Shell environment file: $sqshell\n";
-
-        chmod 0700, $sqshell;
-    }
 #    print SQSH "\nshell \$1 \$2 \$3 \$4 \$5 \$6 \$7 \$8 \$9\n";
 
 
@@ -636,33 +588,9 @@ sub doInit {
 
 #    $coldscriptFileName=sprintf("%s.cold", $scriptFileName);
 
-    $sqshell = "sqshell.env";
-
     $gdNumCpuCores = `cat /proc/cpuinfo | grep "processor" | wc -l`;
 #print "The number of cores is $gdNumCpuCores\n";
 
-}
-
-sub setupDbUniqStrings {
-
-    my $my_scripts_dir = "$TRAF_HOME" . "/sql/scripts/" ;
-    for ($i=0; $i < $gdNumNodes; $i++) {
-        sqconfigdb::addDbUniqStr($i, 1, 'shell');
-        sqconfigdb::addDbUniqStr($i, 2, 'pstartd');
-        sqconfigdb::addDbUniqStr($i, 3, 'sqwatchdog');
-        sqconfigdb::addDbUniqStr($i, 4, 'idtmsrv');
-        sqconfigdb::addDbUniqStr($i, 5, 'tm');
-        sqconfigdb::addDbUniqStr($i, 6, 'service_monitor');
-        sqconfigdb::addDbUniqStr($i, 7, 'mxsscp');
-        sqconfigdb::addDbUniqStr($i, 8, 'mxssmp');
-        sqconfigdb::addDbUniqStr($i, 9, 'run_command');
-        sqconfigdb::addDbUniqStr($i, 10, 'mxosrvr');
-        sqconfigdb::addDbUniqStr($i, 11, 'tdm_arkesp');
-        sqconfigdb::addDbUniqStr($i, 12, 'tdm_arkcmp');
-        sqconfigdb::addDbUniqStr($i, 13, 'traf_notify');
-        sqconfigdb::addDbUniqStr($i, 14, 'mxlobsrvr');
-        sqconfigdb::addDbUniqStr($i, 15, 'trafns');
-    }
 }
 
 #
@@ -711,8 +639,6 @@ while (<>) {
 }
 
 #printZoneList;
-
-setupDbUniqStrings();
 
 printScriptEndLines;
 

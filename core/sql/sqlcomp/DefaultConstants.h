@@ -523,6 +523,7 @@ enum DefaultConstants
   USTAT_MIN_ROWCOUNT_FOR_SAMPLE,     // Smallest table for which sampling used
   USTAT_MIN_ROWCOUNT_FOR_LOW_SAMPLE, // Smallest table for which lowest sampling rate used
   USTAT_MODIFY_DEFAULT_UEC,    // Modify the default UEC
+  USTAT_MULTI_COLUMN_LIMIT,    // Limit on number of columns in a multi-column histogram
   USTAT_UEC_HI_RATIO,          // When the estimated UEC/ROWCOUNT ratio is
   USTAT_UEC_LOW_RATIO,         // between HI_RATIO and LOW_RATIO, we will avoid
                                // calling xValue() to find the root value.
@@ -1261,6 +1262,7 @@ enum DefaultConstants
   COMP_BOOL_12,
   COMP_BOOL_13,
   COMP_BOOL_14,
+  COMP_BOOL_15,
   COMP_BOOL_18,
   COMP_BOOL_19,
   COMP_BOOL_20,
@@ -1658,6 +1660,7 @@ enum DefaultConstants
   COMP_BOOL_111,
   COMP_BOOL_112,
   COMP_BOOL_113,
+  COMP_BOOL_114,
   COMP_BOOL_115,
   COMP_BOOL_116,
   COMP_BOOL_117,
@@ -1727,6 +1730,7 @@ enum DefaultConstants
   COMP_BOOL_191,
   COMP_BOOL_192,
   COMP_BOOL_193,
+  COMP_BOOL_194,  // Can be used to turn off fix to JIRA Trafodion 3325
   COMP_BOOL_196,
   COMP_BOOL_197,
   COMP_BOOL_198,
@@ -3300,11 +3304,32 @@ enum DefaultConstants
   BMO_MEMORY_LIMIT_UPPER_BOUND,
   BMO_MEMORY_ESTIMATE_RATIO_CAP,
 
+  // if OFF, binary/varbinary is not supported. It is treated as char/varchar.
+  // if ON,  binary is supported as table cols and in cast stmts.
+  // This is needed until binary/varbinary support is fully
+  // supported and externalized.
+  TRAF_BINARY_SUPPORT,
+
+  // If ON, binary is supported as returned datatype from a select stmt,
+  // otherwise returned as char/varchar.
+  TRAF_BINARY_OUTPUT,
+
+  // If ON, input params are typed as binary,
+  // otherwise typed as char/varchar.
+  TRAF_BINARY_INPUT,
+
+  // if ON, spj input/output params are typed as binary.
+  // Otherwise typed as char/varchar.
+  TRAF_BINARY_SPJ_SUPPORT,
+
   // if set, cleanse output of explain text by filtering values that
   // may not be deterministic on different systems.
   // Same as explain format: options 'c'
   // Used during dev regressions to cleanse explain output.
   EXPLAIN_OPTION_C,
+
+  // max length of hive binary datatype
+  HIVE_MAX_BINARY_LENGTH,
 
   // Threshold when TOPN sort becomes a regular sort
   GEN_SORT_TOPN_THRESHOLD,
@@ -3357,6 +3382,17 @@ enum DefaultConstants
   // Use BLOB column in LIBRARIES tables to store libraries.
   USE_LIB_BLOB_STORE,
 
+  // When creating a Trafodion table like a partitioned Hive table
+  // use NO NULL attribute for partitin columns
+  HIVE_CREATE_TABLE_LIKE_PARTITION_NO_NULL,
+
+  CANCEL_QUERY_ALLOWED,
+
+  // Determines if a transaction needs to be started for select
+  // 0 - No transactions for SELECT
+  // 1 - Transaction started for SELECT .. FOR UPDATE
+  // 2 - Transaction started for SELECT with isolaton level other than skip conflict access 
+  BEGIN_TRANSACTION_FOR_SELECT, 
   // This enum constant must be the LAST one in the list; it's a count,
   // not an Attribute (it's not IN DefaultDefaults; it's the SIZE of it)!
   __NUM_DEFAULT_ATTRIBUTES

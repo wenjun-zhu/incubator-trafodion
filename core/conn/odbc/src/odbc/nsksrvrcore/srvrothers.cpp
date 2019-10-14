@@ -832,6 +832,7 @@ odbc_SQLSvc_Prepare2_sme_(
   , /* In    */ const IDL_char *stmtLabel
   , /* In    */ IDL_string sqlString
   , /* In    */ Int32 holdableCursor
+  , /* In    */ Int32 queryTimeout
   , /* Out   */ Int32 *returnCode
   , /* Out   */ Int32 *sqlWarningOrErrorLength
   , /* Out   */ BYTE *&sqlWarningOrError
@@ -1209,8 +1210,8 @@ odbc_SQLSvc_Prepare2withRowsets_sme_(
 		if (pSrvrStmt->maxRowsetSize == ROWSET_NOT_DEFINED) pSrvrStmt->maxRowsetSize = DEFAULT_ROWSET_SIZE;
 
 // this part is for NAR (not Atomic Rowset Recovery)
-		if (pSrvrStmt->maxRowsetSize > 1
-            && (pSrvrStmt->sqlStmtType == TYPE_INSERT_PARAM))
+		if (pSrvrStmt->maxRowsetSize > 1)
+//            && (pSrvrStmt->sqlStmtType == TYPE_INSERT_PARAM))
 //	        || pSrvrStmt->sqlStmtType == TYPE_UPDATE
 //	        || pSrvrStmt->sqlStmtType == TYPE_DELETE))
 		{
@@ -1410,6 +1411,7 @@ odbc_SQLSvc_Execute2_sme_(
 				  , sqlStmtType
 				  , inputRowCnt
 				  , holdableCursor
+                                  , queryTimeout
 				  , &rc
 				  , returnCode
 				  , sqlWarningOrErrorLength
@@ -1746,6 +1748,7 @@ odbc_SQLSvc_Execute2withRowsets_sme_(
 				  , sqlStmtType
 				  , inputRowCnt
 				  , holdableCursor
+				  , queryTimeout
 				  ,&rc
 				  , returnCode
 				  , sqlWarningOrErrorLength
@@ -2075,6 +2078,7 @@ rePrepare2( SRVR_STMT_HDL *pSrvrStmt
 			, Int32			sqlStmtType
 			, Int32			inputRowCnt
 			, Int32		holdableCursor
+			, Int32 queryTimeout
 			, SQLRETURN     *rc
 			, Int32          *returnCode
 			, Int32      *sqlWarningOrErrorLength
@@ -3234,15 +3238,26 @@ odbc_SQLSvc_EndTransaction_sme_(
 	SRVRTRACE_ENTER(FILE_SME+5);
 
 	char stmtLabel[MAX_STMT_LABEL_LEN+1];
-	Int32 rc = SQL_SUCCESS;
 	SRVR_STMT_HDL	*pSrvrStmt = NULL;
+	bool isTransPending = (WSQL_EXEC_Xact(SQLTRANS_STATUS, 0) == 0);
+	Int32 rc = SQL_SUCCESS;
+
+	exception_->exception_nr = 0;
+	sqlWarning->_buffer = NULL;
+	sqlWarning->_length = 0;
 
 	switch (transactionOpt) {
 	case SQL_COMMIT:
-		pSrvrStmt = getSrvrStmt("STMT_COMMIT_1", FALSE);
+		if (isTransPending)
+			pSrvrStmt = getSrvrStmt("STMT_COMMIT_1", FALSE);
+		else
+			return;
 		break;
 	case SQL_ROLLBACK:
-		pSrvrStmt = getSrvrStmt("STMT_ROLLBACK_1", FALSE);
+		if (isTransPending)
+			pSrvrStmt = getSrvrStmt("STMT_ROLLBACK_1", FALSE);
+		else
+			return;
 		break;
 	default:
 		exception_->exception_nr = odbc_SQLSvc_EndTransaction_ParamError_exn_;

@@ -7768,9 +7768,15 @@ const NAString BuiltinFunction::getText() const
     case ITM_AGGR_GROUPING_FUNC:
       return "aggr_grouping";
 
-    case ITM_TO_TIMESTAMP:
-      return "to_timestamp";
+    case ITM_ENCODE_BASE64:
+      return "encode_base64";
 
+    case ITM_DECODE_BASE64:
+      return "decode_base64";
+
+    case ITM_TO_TIMESTAMP:
+       return "to_timestamp";
+ 
     case ITM_SPLIT_PART:
       return "split_part";
 
@@ -10084,10 +10090,15 @@ void ConstValue::initCharConstValue
                                       );
       }
       else
-      type_ = new (outHeap)
-		SQLChar(outHeap, num_of_chars, FALSE, FALSE, FALSE, FALSE,
-			charSet, collation, coercibility);
-
+      {
+        if (charSet == CharInfo::BINARY)
+          type_ = new (outHeap)
+            SQLBinaryString(outHeap, strval.length(), FALSE, FALSE);
+        else
+          type_ = new (outHeap)
+            SQLChar(outHeap, num_of_chars, FALSE, FALSE, FALSE, FALSE,
+                    charSet, collation, coercibility);
+      }
 
       storageSize_ = strval.length();
       value_ = (void *)( new (outHeap)
@@ -10984,20 +10995,16 @@ const NAString ConstValue::getText() const
 {
   if(getType()->getTypeQualifier() == NA_CHARACTER_TYPE)
     {
-      NAString result(CmpCommon::statementHeap());
-      if (!textIsValidatedSQLLiteralInUTF8_)
-        result += "\'";
-      if (text_) result += *text_;
-      if (!textIsValidatedSQLLiteralInUTF8_)
-        result += "\'";
+      NAString result = getTextForQuery(QUERY_FORMAT);
 
       // Change imbedded NULL and \377 chars to \0 and \377
       // This comes up in key values quite often.
-      size_t index;
-      while((index = result.first('\0')) != NA_NPOS
+      size_t index = 0;
+      while((index = result.first('\0', index)) != NA_NPOS
 	    && index != result.length())
 	result(index,1) = "\\0";
-      while((index = result.first('\377')) != NA_NPOS
+      index = 0;
+      while((index = result.first('\377', index)) != NA_NPOS
 	    && index != result.length())
 	result(index,1) = "\\377";
 

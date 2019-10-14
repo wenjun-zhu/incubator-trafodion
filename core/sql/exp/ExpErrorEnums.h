@@ -137,6 +137,7 @@ enum ExeErrorCode
   EXE_TRIM_ERROR			= 8404,
   EXE_CONVERTTIMESTAMP_ERROR		= 8405,
   EXE_JULIANTIMESTAMP_ERROR		= 8407,
+  EXE_CONVERSION_ERROR                  = 8408,
   EXE_INVALID_ESCAPE_CHARACTER		= 8409,
   EXE_INVALID_ESCAPE_SEQUENCE		= 8410,
   EXE_NUMERIC_OVERFLOW			= 8411,
@@ -169,6 +170,7 @@ enum ExeErrorCode
   EXE_INVALID_LOB_HANDLE                = 8443,
   EXE_ERROR_HDFS_SCAN                   = 8447,
   EXE_INVALID_INTERVAL_RESULT           = 8453,
+  EXE_HIVE_ROW_TOO_LONG                 = 8457,
   EXE_LAST_EXPRESSIONS_ERROR		= 8499,
 
   // ---------------------------------------------------------------------
@@ -406,7 +408,7 @@ enum ExeErrorCode
 
   CLI_ARKCMP_INIT_FAILED		= 8890,
   CLI_NOT_ASCII_CHAR_TYPE		= 8891,
-  // unused				= 8892,
+  CLI_STMT_EXCEEDS_DESC_COUNT           = 8892,
   CLI_STMT_DESC_COUNT_MISMATCH          = 8893,
   CLI_RESERVED_ARGUMENT                 = 8894,
   CLI_INVALID_CHARSET_FOR_DESCRIPTOR    = 8895,

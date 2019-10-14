@@ -5000,7 +5000,7 @@ void OptDefaults::initialize(RelExpr* rootExpr)
   // interval is (this mirrors the logic in runtimestats/ssmpipc.cpp), so
   // we can fail-safe the histogram cache.
 
-  char *sct = getenv("RMS_SIK_GC_INTERVAL_SECONDS");  // in seconds
+  static char *sct = getenv("RMS_SIK_GC_INTERVAL_SECONDS");  // in seconds
   if (sct)
     {
       siKeyGCinterval_ = ((Int64) str_atoi(sct, str_len(sct)));
@@ -6266,9 +6266,12 @@ void OptDebug::showEstLogProp( const EstLogPropSharedPtr& estLogProp,
 
     ColStatsSharedPtr colStats = stats[i]->getColStats();
 
-    out << prefix << "Table Column: "
-        << colStats->getStatColumns()[0]->getFullColRefNameAsAnsiString().data()
-        << endl;
+    out << prefix << "Table Column: ";
+    if (colStats->getStatColumns().entries() > 0)
+      out << colStats->getStatColumns()[0]->getFullColRefNameAsAnsiString().data();
+    else
+      out << "(None)";
+    out << endl;
 
     if (colStats->isFakeHistogram())
       out << prefix << "*** FAKE HISTOGRAM ***" << endl;

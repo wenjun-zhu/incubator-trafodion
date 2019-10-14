@@ -449,7 +449,7 @@ function sqsavelogs {
     cp -p $TRAF_LOG/stdout_* ${lv_stdout_dir_name}
 
     lv_config_dir_name=${lv_copy_to_dir}/sqconfig_db
-    cp -p $TRAF_HOME/sql/scripts/sqconfig.db ${lv_config_dir_name}/${lv_node}_sqconfig.db
+    cp -p $TRAF_VAR/sqconfig.db ${lv_config_dir_name}/${lv_node}_sqconfig.db
 
     sqsave_linux_info ${lv_linux_collection_dir}/linux
 
@@ -610,12 +610,12 @@ function sqcollectlogs {
 
     cp -p $TRAF_HOME/sqenv.sh .
     cp -p $TRAF_HOME/sqenvcom.sh .
-    cp -p $TRAF_HOME/etc/ms.env .
+    cp -p $TRAF_VAR/ms.env .
     cp -p $TRAF_HOME/sql/scripts/gomon.cold .
     cp -p $TRAF_HOME/sql/scripts/gomon.warm .
-    cp -p $TRAF_HOME/sql/scripts/sqconfig .
-    cp -p $TRAF_HOME/sql/scripts/mon.env . 2>/dev/null
-    cp -p $TRAF_HOME/sql/scripts/shell.env . 2>/dev/null
+    cp -p $TRAF_CONF/sqconfig .
+    cp -p $TRAF_VAR/mon.env . 2>/dev/null
+    cp -p $TRAF_VAR/shell.env . 2>/dev/null
     cd ..
 #   end configuration info
 
@@ -1013,10 +1013,16 @@ function cdt {
     cd $MPI_TMPDIR
 }
 function cdc {
-    cd /local/cores/$UID
+    cd $TRAF_CONF
 }
 function cdj {
     cd $TRAF_HOME/../sql/src/main/java/org/trafodion/sql
+}
+function cdci {
+    cd $TRAF_HOME/../conn/trafci/src/main/java/org/trafodion/ci
+}
+function cdt4 {
+    cd $TRAF_HOME/../conn/jdbcT4/src/main/java/org/trafodion/jdbc/t4
 }
 # ls variants
 function lst {

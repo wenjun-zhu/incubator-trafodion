@@ -3216,6 +3216,24 @@ NABoolean createNAType(TrafColumnsDesc *column_desc	/*IN*/,
       }
       break;
 
+    case REC_BINARY_STRING:
+      {
+        Lng32 sizeInChars = charCount ;
+        type = new (heap)
+          SQLBinaryString(heap,
+                          column_desc->length, column_desc->isNullable(), FALSE);
+      }
+      break;
+
+    case REC_VARBINARY_STRING:
+      {
+        Lng32 sizeInChars = charCount ;
+        type = new (heap)
+          SQLBinaryString(heap,
+                          column_desc->length, column_desc->isNullable(), TRUE);
+      }
+      break;
+
     default:
       {
 	// 4031 Column %s is an unknown data type, %d.
@@ -6892,11 +6910,14 @@ void NATable::getPrivileges(TrafDesc * priv_desc)
           qualifiedName_.getExtendedQualifiedNameAsString().data(),
           privDetails.c_str());
   QRLogger::log(CAT_SQL_EXE, LL_DEBUG, "%s", msg);
-  if (getenv("DBUSER_DEBUG"))
+#ifndef NDEBUG
+    static char *dbuser_debug = getenv("DBUSER_DEBUG");
+    if (dbuser_debug != NULL)
   {
     printf("[DBUSER:%d] %s\n", (int) getpid(), msg);
     fflush(stdout);
   }
+#endif
 }
 
 // Call privilege manager to get privileges and security keys
@@ -7000,7 +7021,7 @@ bool NATable::isEnabledForDDLQI() const
           // types of tables but will abend here otherwise. If this 
           // causes problems, the envvar below can be used as a 
           // temporary workaround. 
-          char *noAbendOnLp1398600 = getenv("NO_ABEND_ON_LP_1398600");
+          static char *noAbendOnLp1398600 = getenv("NO_ABEND_ON_LP_1398600");
           if (!noAbendOnLp1398600 || *noAbendOnLp1398600 == '0')
             abort();
         }
@@ -7592,10 +7613,12 @@ NATable * NATableDB::get(const ExtendedQualName* key, BindWA* bindWA, NABoolean 
               if (objName.getUnqualifiedSchemaNameAsAnsiString() == defSchema)
                 sName = hiveMetaDB_->getDefaultSchemaName();
 
-              // validate Hive table timestamps
-              if (!hiveMetaDB_->validate(cachedNATable->getHiveTableId(),
-                                         cachedNATable->getRedefTime(),
-                                         sName.data(), tName.data()))
+              // validate Hive table timestamps to check if there is change
+              // in directory timestamp
+              if (hiveMetaDB_->getTableDesc(sName,
+                                            tName,
+                                            TRUE /*validate only*/,
+                                            (CmpCommon::getDefault(TRAF_RELOAD_NATABLE_CACHE) == DF_ON), TRUE) == NULL)
                 removeEntry = TRUE;
 
               // validate HDFS stats and update them in-place, if needed
@@ -8409,7 +8432,7 @@ NATable * NATableDB::get(CorrName& corrName, BindWA * bindWA,
       if ( hiveMetaDB_ == NULL ) {
 	if (CmpCommon::getDefault(HIVE_USE_FAKE_TABLE_DESC) != DF_ON)
 	  {
-	    hiveMetaDB_ = new (CmpCommon::contextHeap()) HiveMetaData();
+	    hiveMetaDB_ = new (CmpCommon::contextHeap()) HiveMetaData((NAHeap *)CmpCommon::contextHeap());
 	    
 	    if ( !hiveMetaDB_->init() ) {
 	      *CmpCommon::diags() << DgSqlCode(-1190)
@@ -8427,7 +8450,7 @@ NATable * NATableDB::get(CorrName& corrName, BindWA * bindWA,
 	  }
 	else
 	  hiveMetaDB_ = new (CmpCommon::contextHeap()) 
-            HiveMetaData(); // fake metadata
+            HiveMetaData((NAHeap *)CmpCommon::contextHeap()); // fake metadata
       }
       
       // this default schema name is what the Hive default schema is called in SeaHive
@@ -8447,7 +8470,11 @@ NATable * NATableDB::get(CorrName& corrName, BindWA * bindWA,
        if (CmpCommon::getDefault(HIVE_USE_FAKE_TABLE_DESC) == DF_ON)
          htbl = hiveMetaDB_->getFakedTableDesc(tableNameInt);
        else
-         htbl = hiveMetaDB_->getTableDesc(schemaNameInt, tableNameInt);
+         htbl = hiveMetaDB_->getTableDesc(schemaNameInt, tableNameInt,
+                FALSE,
+                // reread Hive Table Desc from MD.
+                (CmpCommon::getDefault(TRAF_RELOAD_NATABLE_CACHE) == DF_ON),
+                TRUE);
 
        NAString extName = ComConvertNativeNameToTrafName(
             corrName.getQualifiedNameObj().getCatalogName(),
@@ -8595,7 +8622,7 @@ NATable * NATableDB::get(CorrName& corrName, BindWA * bindWA,
         // ------------------------------------------------------------------
         if ( hiveMetaDB_ == NULL ) 
           {
-            hiveMetaDB_ = new (CmpCommon::contextHeap()) HiveMetaData();
+            hiveMetaDB_ = new (CmpCommon::contextHeap()) HiveMetaData((NAHeap *)CmpCommon::contextHeap());
             
             if ( !hiveMetaDB_->init() ) 
               {
@@ -8645,11 +8672,11 @@ NATable * NATableDB::get(CorrName& corrName, BindWA * bindWA,
           }
 
         htbl = new(naTableHeap) hive_tbl_desc
-          (0, 
+          ((NAHeap *)naTableHeap, 0, 
            corrName.getQualifiedNameObj().getObjectName(),
            corrName.getQualifiedNameObj().getSchemaName(),
            NULL, NULL,
-           0, NULL, NULL, NULL, NULL);
+           0, NULL, NULL, NULL, NULL, NULL);
         table = new (naTableHeap) NATable
           (bindWA, corrName, naTableHeap, htbl);
         
